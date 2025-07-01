@@ -5,12 +5,6 @@ from bs4 import BeautifulSoup
 from curl_cffi import requests
 from typing import List, Dict, Set, Optional
 
-def configure_base_session(session: requests.Session):
-    session.cipher = ("TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384:TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256:TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:TLS_RSA_WITH_AES_256_GCM_SHA384:TLS_RSA_WITH_AES_128_GCM_SHA256:TLS_RSA_WITH_AES_256_CBC_SHA:TLS_RSA_WITH_AES_128_CBC_SHA:TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA:TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA:TLS_RSA_WITH_3DES_EDE_CBC_SHA")
-    session.curve = "X25519:P-256:P-384:P-521"
-    session.sign_algo = ("ecdsa_secp256r1_sha256,rsa_pss_rsae_sha256,rsa_pkcs1_sha256,ecdsa_secp384r1_sha384,ecdsa_sha1,rsa_pss_rsae_sha384,rsa_pss_rsae_sha384,rsa_pkcs1_sha384,rsa_pss_rsae_sha512,rsa_pkcs1_sha512,rsa_pkcs1_sha1")
-    return session
-
 def create_session(session_type: str = "steam", appid: Optional[str] = None) -> requests.Session:
     if session_type == "steamdb":            
         headers = { "authority": "steamdb.info", "accept": "text/html", "accept-encoding": "gzip, deflate, br, zstd", "accept-language": "en", "dnt": "1", "priority": "u=1, i", "referer": f"https://steamdb.info/app/{appid}/stats/", "sec-ch-ua": '"Not A(Brand";v="8", "Chromium";v="132", "Google Chrome";v="132"', "sec-ch-ua-mobile": "?0", "sec-ch-ua-platform": '"Windows"', "sec-fetch-dest": "empty", "sec-fetch-mode": "cors", "sec-fetch-site": "same-origin", "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36", "x-requested-with": "XMLHttpRequest" }
@@ -19,7 +13,7 @@ def create_session(session_type: str = "steam", appid: Optional[str] = None) -> 
         headers = { "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.5 Safari/605.1.15", "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", "Accept-Language": "en-GB,en-US;q=0.9,en;q=0.8", "Accept-Encoding": "gzip, deflate, br" }
         session = requests.Session(impersonate="safari15_5", headers=headers, timeout=30)
     
-    return configure_base_session(session)
+    return session
 
 def mk_request(url: str, session: requests.Session) -> requests.Response:
     try:
@@ -149,10 +143,14 @@ def fetch_from_steamcommunity(appid: str, silent: bool = False):
         print(f"Found {len(achievement_rows)} achievements...")
 
     for idx, achievement in enumerate(achievement_rows):
-        icon_src = achievement.select_one('.achieveImgHolder img')['src']
-        icon = icon_src.split('/')[-1]
+        img_tag = achievement.select_one('.achieveImgHolder img')
+        icon = ""
+        if img_tag and img_tag.get('src'):
+            icon_src = str(img_tag['src'])
+            icon = icon_src.split('/')[-1]
         
-        displayName = achievement.select_one('.achieveTxt h3').text.strip()
+        name_tag = achievement.select_one('.achieveTxt h3')
+        displayName = name_tag.text.strip() if name_tag else ""
         description_tag = achievement.select_one('.achieveTxt h5')
         description = description_tag.text.strip() if description_tag else ""
         hidden = 1 if description == "" else 0
@@ -175,7 +173,7 @@ def fetch_from_steamcommunity(appid: str, silent: bool = False):
 
 # def main():
 #     appid = "553850"
-#     fetch_from_steamdb(appid)
+#     fetch_from_steamcommunity(appid)
 
 # if __name__ == "__main__":
 #     main()
