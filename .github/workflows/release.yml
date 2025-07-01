@@ -8,7 +8,7 @@ permissions:
   contents: write
 
 env:
-  RELEASE_DIR: "GSE Generator"
+  RELEASE_DIR: "YAGG"
   ASSETS_DIR: "assets"
   ZIP_TEMP_DIR: "7zip-temp"
 
@@ -25,7 +25,7 @@ jobs:
         run: |
           $tagName = $env:GITHUB_REF -replace 'refs/tags/', ''
           echo "TAG_NAME=$tagName" >> $env:GITHUB_ENV
-          echo "RELEASE_ZIP=GSE.Generator-$tagName.zip" >> $env:GITHUB_ENV
+          echo "RELEASE_ZIP=YAGG-$tagName.zip" >> $env:GITHUB_ENV
         shell: pwsh
 
       - name: Extract release notes
@@ -78,7 +78,7 @@ jobs:
           $tags = (git tag --sort=-v:refname)
           $currentIdx = [array]::IndexOf($tags, $env:TAG_NAME)
           $prevTag = if ($currentIdx -lt ($tags.Length - 1)) { $tags[$currentIdx + 1] } else { $env:TAG_NAME }
-          $changelogUrl = "**Full Changelog**: https://github.com/0xNullPointers/GSE-Gen/compare/$prevTag...$env:TAG_NAME"
+          $changelogUrl = "**Full Changelog**: https://github.com/0xNullPointers/YAGG/compare/$prevTag...$env:TAG_NAME"
           
           # Use same delimiter approach for consistency
           $delimiter = "FINAL_NOTES_EOF_$(Get-Random)"
@@ -138,7 +138,7 @@ jobs:
           # Move launcher executable
           $launcherPath = "$releaseAssetsPath/Launcher.exe"
           if (Test-Path $launcherPath) {
-            Move-Item $launcherPath -Destination "$env:RELEASE_DIR/GSE_Gen.exe"
+            Move-Item $launcherPath -Destination "$env:RELEASE_DIR/YAGG.exe"
           } else {
             Write-Warning "Launcher.exe not found at $launcherPath"
           }
