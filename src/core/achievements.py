@@ -5,12 +5,48 @@ from bs4 import BeautifulSoup
 from curl_cffi import requests
 from typing import List, Dict, Set, Optional
 
+def load_headers() -> Dict[str, Dict[str, str]]:
+    try:
+        headers_path = os.path.abspath(os.path.join(os.getcwd(), "..", "..", "assets", "headers.dat"))
+        with open(headers_path, 'r', encoding='utf-8') as f:
+            enc_text = f.read().strip()
+   
+        output_chars = []
+        token = "GetHeaders"
+        sk_len = len(token)
+        for idx in range(0, len(enc_text), 2):
+            if idx + 1 >= len(enc_text):
+                break
+            try:
+                num_val = int(enc_text[idx:idx+2], 16)
+                char_pos = idx // 2
+                xor_val = (num_val - char_pos - 13) % 256
+                orig_char = xor_val ^ ord(token[char_pos % sk_len])
+                if 0 <= orig_char <= 255:
+                    output_chars.append(chr(orig_char))
+            except ValueError:
+                continue
+        
+        return json.loads(''.join(output_chars))
+    
+    except FileNotFoundError:
+        raise FileNotFoundError("Headers not found")
+    except json.JSONDecodeError:
+        raise ValueError(f"Failed to parse headers")
+    except Exception as err:
+        raise ValueError(f"Failed to decrypt headers: {err}")
+
 def create_session(session_type: str = "steam", appid: Optional[str] = None) -> requests.Session:
-    if session_type == "steamdb":            
-        headers = { "authority": "steamdb.info", "accept": "text/html", "accept-encoding": "gzip, deflate, br, zstd", "accept-language": "en", "dnt": "1", "priority": "u=1, i", "referer": f"https://steamdb.info/app/{appid}/stats/", "sec-ch-ua": '"Not A(Brand";v="8", "Chromium";v="132", "Google Chrome";v="132"', "sec-ch-ua-mobile": "?0", "sec-ch-ua-platform": '"Windows"', "sec-fetch-dest": "empty", "sec-fetch-mode": "cors", "sec-fetch-site": "same-origin", "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36", "x-requested-with": "XMLHttpRequest" }
+    headers_data = load_headers()
+    
+    if session_type == "steamdb":
+        headers = headers_data["steamdb"].copy()
+        if appid and "referer" in headers:
+            headers["referer"] = headers["referer"].format(appid=appid)
+        
         session = requests.Session(impersonate="chrome110", headers=headers, timeout=30)
     else:  # steam
-        headers = { "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.5 Safari/605.1.15", "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", "Accept-Language": "en-GB,en-US;q=0.9,en;q=0.8", "Accept-Encoding": "gzip, deflate, br" }
+        headers = headers_data["steam"]
         session = requests.Session(impersonate="safari15_5", headers=headers, timeout=30)
     
     return session
@@ -172,8 +208,13 @@ def fetch_from_steamcommunity(appid: str, silent: bool = False):
     return achievements
 
 # def main():
-#     appid = "553850"
-#     fetch_from_steamcommunity(appid)
+#     try:
+#         appid = "730"
+#         fetch_from_steamdb(appid)
+#     except FileNotFoundError:
+#         print("Error: Headers not found.")
+#     except Exception as e:
+#         print(f"Error: {e}")
 
 # if __name__ == "__main__":
 #     main()
