@@ -155,7 +155,9 @@ jobs:
           }
           
           # Create final release package
-          & 7z a -tzip -mx=9 "$env:RELEASE_ZIP" "$env:RELEASE_DIR\*"
+          Push-Location $env:RELEASE_DIR
+          & 7z a -tzip -mx=9 "../$env:RELEASE_ZIP" "*"
+          Pop-Location
           Write-Host "Created release package: $env:RELEASE_ZIP"
         shell: pwsh
       
