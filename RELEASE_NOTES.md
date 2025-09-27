@@ -18,3 +18,7 @@
 - Refactored closing function
 - Enabled automatic download of 7z.dll via the workflow
 - Added Quick Guide in GUI
+
+# v1.0.4
+- Refactored session creation logic
+- Added support for external header files for better maintainability
