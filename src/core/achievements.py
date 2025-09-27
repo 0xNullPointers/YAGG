@@ -6,11 +6,21 @@ from curl_cffi import requests
 from typing import List, Dict, Set, Optional
 
 def load_headers() -> Dict[str, Dict[str, str]]:
+    enc_text = None
     try:
-        headers_path = os.path.abspath(os.path.join(os.getcwd(), "..", "..", "assets", "headers.dat"))
-        with open(headers_path, 'r', encoding='utf-8') as f:
-            enc_text = f.read().strip()
-   
+        headers_url = "https://raw.githubusercontent.com/0xNullPointers/YAGG/main/assets/headers.dat"
+        response = requests.get(headers_url, timeout=10)
+        response.raise_for_status()
+        enc_text = response.text.strip()
+    except:
+        try:
+            headers_path = os.path.abspath(os.path.join(os.getcwd(), "..", "..", "assets", "headers.dat"))
+            with open(headers_path, 'r', encoding='utf-8') as f:
+                enc_text = f.read().strip()
+        except:
+            raise FileNotFoundError("Headers not found")
+
+    try:
         output_chars = []
         token = "GetHeaders"
         sk_len = len(token)
@@ -29,10 +39,8 @@ def load_headers() -> Dict[str, Dict[str, str]]:
         
         return json.loads(''.join(output_chars))
     
-    except FileNotFoundError:
-        raise FileNotFoundError("Headers not found")
     except json.JSONDecodeError:
-        raise ValueError(f"Failed to parse headers")
+        raise ValueError("Failed to parse headers")
     except Exception as err:
         raise ValueError(f"Failed to decrypt headers: {err}")
 
