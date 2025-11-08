@@ -3,9 +3,17 @@
 # curl-cffi==0.7.3
 # PySide6==6.8.1.1
 
-# 17th Jun 2025
+# # 17th Jun 2025
+# beautifulsoup4==4.13.4
+# curl_cffi==0.11.3
+# PySide6==6.9.1
+# certifi==2025.4.26
+# Nuitka==2.7.7   # For compilation
+
+# 8th Nov 2025
 beautifulsoup4==4.13.4
 curl_cffi==0.11.3
 PySide6==6.9.1
 certifi==2025.4.26
-Nuitka==2.7.7   # For compilation
+DrissionPage==4.0.5.6
+Nuitka==2.8.4   # For compilation
