@@ -22,3 +22,9 @@
 # v1.0.4
 - Refactored session creation logic
 - Added support for external header files for better maintainability
+
+# v1.0.5
+- Removed `headers.dat` functionality
+- Included functionality for reliable achievement fetching 
+- Improved image downloading logic
+- Added thread safety with mutex protection
