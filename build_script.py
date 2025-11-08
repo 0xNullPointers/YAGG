@@ -43,6 +43,7 @@ def main():
     modules_to_include = [
         "src.core.achievements",
         "src.core.appID_finder",
+        "src.core.cf_bypass",
         "src.core.dlc_gen",
         "src.core.goldberg_gen",
         "src.core.setupEmu",
