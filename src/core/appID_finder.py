@@ -12,14 +12,40 @@ def get_steam_data(output_dir='assets'):
     
     cursor.execute('SELECT COUNT(*) FROM apps')
     if cursor.fetchone()[0] == 0:
-        api = "https://api.steampowered.com/ISteamApps/GetAppList/v0002/"
-        response = requests.get(api, timeout=30)
-        app_list = response.json()['applist']['apps']
+        app_list = None
         
-        cursor.execute('BEGIN TRANSACTION')
-        for app in app_list:
-            cursor.execute('''INSERT OR IGNORE INTO apps (appid, name) VALUES (?, ?)''', (app['appid'], app['name']))
-        conn.commit()
+        # Try API first
+        try:
+            api = "https://api.steampowered.com/ISteamApps/GetAppList/v2/"
+            response = requests.get(api, timeout=30)
+            response.raise_for_status()
+            app_list = response.json()['applist']['apps']
+        except Exception as e:
+            
+            # Fallback to GitHub sources
+            fallback_urls = [
+                "https://raw.githubusercontent.com/jsnli/steamappidlist/refs/heads/master/data/dlc_appid.json",
+                "https://raw.githubusercontent.com/jsnli/steamappidlist/refs/heads/master/data/games_appid.json",
+                "https://raw.githubusercontent.com/jsnli/steamappidlist/refs/heads/master/data/software_appid.json"
+            ]
+            
+            app_list = []
+            for url in fallback_urls:
+                try:
+                    response = requests.get(url, timeout=30)
+                    response.raise_for_status()
+                    app_list.extend(response.json())
+                except Exception as e:
+                    print(f"Failed to fetch {url}: {e}")
+        
+        # Insert data into database if available
+        if app_list:
+            cursor.execute('BEGIN TRANSACTION')
+            for app in app_list:
+                cursor.execute('''INSERT OR IGNORE INTO apps (appid, name) VALUES (?, ?)''', (app['appid'], app['name']))
+            conn.commit()
+        else:
+            print("Warning: No data fetched")
     
     return conn
 
