@@ -4,7 +4,7 @@ from ctypes import wintypes
 from DrissionPage import ChromiumPage, ChromiumOptions
 from src.core.threadManager import ThreadManager
 
-# ========== Win32 Setup ==========
+# Win32 Setup 
 user32 = ctypes.WinDLL('user32', use_last_error=True)
 WNDENUMPROC = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
 
@@ -47,7 +47,7 @@ def monitor_and_hide(existing_set, duration=3):
         time.sleep(0.05)
     return None
 
-# ========== CloudflareBypasser ==========
+# CloudflareBypasser 
 # Courtesy: https://github.com/sarperavci/CloudflareBypassForScraping
 # Handles Cloudflare challenge bypass
 class CloudflareBypasser:
@@ -103,7 +103,7 @@ class CloudflareBypasser:
                     return self._search_input(iframe_body)
             return None
         except Exception as e:
-            print(f"Error locating button: {e}")
+            # print(f"Error locating button: {e}")
             return None
 
     # Execute Cloudflare bypass
@@ -126,8 +126,7 @@ class CloudflareBypasser:
             
             tries += 1
 
-# ========== Main Scraper Class ==========
-# Main Scraper class
+# Main class
 class CF_Scraper:
     
     __slots__ = ('hide_window', 'driver', 'thread_mgr', '_window_monitor_signals')
@@ -202,7 +201,7 @@ class CF_Scraper:
             return html_content
                 
         except Exception as e:
-            print(f"Scraping error: {e}")
+            print(f"Fetching error: {e}")
             raise
         finally:
             self.cleanup()

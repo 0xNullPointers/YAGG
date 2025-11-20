@@ -60,7 +60,7 @@ class AchievementFetcherGUI(QMainWindow):
 
     def setup_window(self):
         # Setup window prop and icon
-        self.setWindowTitle("GSE Generator")
+        self.setWindowTitle("YAGG - GSE Generator")
         self.resize(700, 500)
         self.setMinimumSize(500, 500)
         self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.WindowMinimizeButtonHint | Qt.WindowType.WindowCloseButtonHint)    # Disable maximize button
@@ -81,7 +81,7 @@ class AchievementFetcherGUI(QMainWindow):
         return self._thread_manager
 
     def show_help_text(self):
-        help_text = """GSE Generator - Quick Guide
+        help_text = """YAGG - GSE Generator: Quick Guide
 
   • Account Name: Optional (default used if empty)
   • Game Name: Full game name (e.g. "Counter-Strike 2")  
