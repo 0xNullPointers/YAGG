@@ -1,5 +1,6 @@
 import time
 import ctypes
+import winreg
 from ctypes import wintypes
 from DrissionPage import ChromiumPage, ChromiumOptions
 from src.core.threadManager import ThreadManager
@@ -18,16 +19,75 @@ IsWindowVisible = user32.IsWindowVisible
 IsWindowVisible.argtypes = [wintypes.HWND]
 ShowWindow = user32.ShowWindow
 ShowWindow.argtypes = [wintypes.HWND, ctypes.c_int]
+SetWindowPos = user32.SetWindowPos
+SetWindowPos.argtypes = [wintypes.HWND, wintypes.HWND, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_uint]
 
-# Get all visible Chrome window handles
-def get_chrome_windows():
+# Functions for modifying window styles
+GetWindowLongW = user32.GetWindowLongW
+GetWindowLongW.argtypes = [wintypes.HWND, ctypes.c_int]
+GetWindowLongW.restype = ctypes.c_long
+
+SetWindowLongW = user32.SetWindowLongW
+SetWindowLongW.argtypes = [wintypes.HWND, ctypes.c_int, ctypes.c_long]
+SetWindowLongW.restype = ctypes.c_long
+
+# Constants for SetWindowPos
+HWND_BOTTOM = 1
+SWP_NOACTIVATE = 0x0010
+SWP_NOMOVE = 0x0002
+SWP_NOSIZE = 0x0001
+SWP_SHOWWINDOW = 0x0040
+
+# Constants for window styles
+GWL_EXSTYLE = -20
+WS_EX_TOOLWINDOW = 0x00000080
+WS_EX_APPWINDOW = 0x00040000
+SW_HIDE = 0
+SW_SHOW = 5
+
+# Detect installed Chromium-based browsers from registry
+def find_browsers():
+    browsers = []
+    
+    # Registry paths to check
+    registry_paths = [
+        (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths"),
+        (winreg.HKEY_CURRENT_USER, r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths"),
+        (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\App Paths"),
+    ]
+    
+    browser_configs = [
+        ("chrome.exe", "Google Chrome", "Chrome_WidgetWin_"),
+        ("msedge.exe", "Microsoft Edge", "Chrome_WidgetWin_"),
+        ("brave.exe", "Brave", "Chrome_WidgetWin_"),
+        ("opera.exe", "Opera", "Chrome_WidgetWin_"),
+        ("vivaldi.exe", "Vivaldi", "Chrome_WidgetWin_"),
+    ]
+    
+    for hkey, base_path in registry_paths:
+        for exe_name, display_name, window_class in browser_configs:
+            try:
+                key_path = f"{base_path}\\{exe_name}"
+                with winreg.OpenKey(hkey, key_path) as key:
+                    exe_path, _ = winreg.QueryValueEx(key, "")
+                    if not any(b[0] == display_name for b in browsers):
+                        browsers.append((display_name, exe_path, window_class))
+            except FileNotFoundError:
+                continue
+            except Exception:
+                continue
+    
+    return browsers
+
+# Get all browser window handles for a specific browser
+def get_browser_windows(window_class_prefix="Chrome_WidgetWin_"):
     windows = []
     @WNDENUMPROC
     def enum_proc(hwnd, _):
         if IsWindowVisible(hwnd):
             class_buf = ctypes.create_unicode_buffer(256)
             GetClassNameW(hwnd, class_buf, 256)
-            if class_buf.value.startswith("Chrome_WidgetWin_"):
+            if class_buf.value.startswith(window_class_prefix):
                 title_buf = ctypes.create_unicode_buffer(256)
                 GetWindowTextW(hwnd, title_buf, 256)
                 if title_buf.value:
@@ -36,22 +96,35 @@ def get_chrome_windows():
     EnumWindows(enum_proc, 0)
     return windows
 
-# Monitor for new Chrome windows and hide them
-def monitor_and_hide(existing_set, duration=3):
+# Hide icon from taskbar
+def hide_from_taskbar(hwnd):
+    try:
+        ex_style = GetWindowLongW(hwnd, GWL_EXSTYLE)
+        new_style = (ex_style | WS_EX_TOOLWINDOW) & ~WS_EX_APPWINDOW
+        ShowWindow(hwnd, SW_HIDE)
+        SetWindowLongW(hwnd, GWL_EXSTYLE, new_style)
+        ShowWindow(hwnd, SW_SHOW)
+        ShowWindow(hwnd, SW_HIDE)
+        
+        return True
+    except Exception:
+        return False
+
+# Monitor for browser windows and hide them with proper sequence
+def monitor_and_hide(existing_set, window_class_prefix, duration=1.5):
     start = time.time()
     while time.time() - start < duration:
-        for hwnd in get_chrome_windows():
+        for hwnd in get_browser_windows(window_class_prefix):
             if hwnd not in existing_set:
-                ShowWindow(hwnd, 0)
-                return hwnd
-        time.sleep(0.05)
+                if hide_from_taskbar(hwnd):
+                    return hwnd
+        time.sleep(0.01)
     return None
 
-# CloudflareBypasser 
+# CloudflareBypasser
 # Courtesy: https://github.com/sarperavci/CloudflareBypassForScraping
 # Handles Cloudflare challenge bypass
 class CloudflareBypasser:
-    
     __slots__ = ('driver', 'max_retries')
     def __init__(self, driver: ChromiumPage, max_retries=-1):
         self.driver = driver
@@ -84,7 +157,6 @@ class CloudflareBypasser:
     # Locate Cloudflare challenge button
     def _locate_button(self):
         try:
-            # Fast path: look for turnstile input
             for ele in self.driver.eles("tag:input"):
                 attrs = ele.attrs
                 if attrs.get("type") == "hidden" and "turnstile" in attrs.get("name", ""):
@@ -94,7 +166,6 @@ class CloudflareBypasser:
                         if body:
                             return body.shadow_root("tag:input")
             
-            # Fallback: search through iframe
             body = self.driver.ele("tag:body")
             iframe = self._search_iframe(body)
             if iframe:
@@ -103,7 +174,6 @@ class CloudflareBypasser:
                     return self._search_input(iframe_body)
             return None
         except Exception as e:
-            # print(f"Error locating button: {e}")
             return None
 
     # Execute Cloudflare bypass
@@ -128,59 +198,58 @@ class CloudflareBypasser:
 
 # Main class
 class CF_Scraper:
+    __slots__ = ('hide_window', 'driver', 'thread_mgr', '_window_monitor_signals', 'browser_name', 'browser_path', 'window_class_prefix')
     
-    __slots__ = ('hide_window', 'driver', 'thread_mgr', '_window_monitor_signals')
-    
-    def __init__(self, hide_window=True):
+    def __init__(self, hide_window=True, browser_path=None):
         self.hide_window = hide_window
         self.driver = None
         self.thread_mgr = ThreadManager()
         self._window_monitor_signals = None
+        
+        # Detect browser
+        if browser_path:
+            self.browser_path = browser_path
+            self.browser_name = "Custom Browser"
+            self.window_class_prefix = "Chrome_WidgetWin_"
+        else:
+            browsers = find_browsers()
+            if not browsers:
+                raise RuntimeError("No compatible Chromium-based browsers found in registry")
+            
+            self.browser_name, self.browser_path, self.window_class_prefix = browsers[0]
+            print(f"Using: {self.browser_name}")
     
-    # Set up window hiding monitoring in background thread
     def _setup_hidden_window(self):
-        existing_windows = set(get_chrome_windows())
+        existing_windows = set(get_browser_windows(self.window_class_prefix))
         self._window_monitor_signals = self.thread_mgr.run_function(
-            monitor_and_hide, 
-            existing_windows
+            monitor_and_hide,
+            existing_windows,
+            self.window_class_prefix
         )
         return self._window_monitor_signals
     
-    # Create and configure ChromiumPage driver
     def _create_driver(self):
         co = ChromiumOptions()
+        co.set_browser_path(self.browser_path)
+        
         if self.hide_window:
-            co.set_argument('--window-position=-2400,-2400')
+            co.set_argument('--window-position=-3000,-3000')
+            co.set_argument('--start-minimized')
+            co.set_argument('--disable-gpu')
         else:
             co.set_argument('--window-position=100,100')
+            
         return ChromiumPage(addr_or_opts=co)
     
     def scrape(self, url, output_file=None, max_retries=-1, page_load_wait=0):
-        '''
-        Scrape a URL with Cloudflare bypass and optional hidden browser window.
-        
-        Args:
-            url (str): The URL to scrape
-            output_file (str, optional): File path to save HTML. If None, returns HTML string
-            max_retries (int): Max Cloudflare bypass retries (-1 for infinite)
-            page_load_wait (int/float): Seconds to wait after page loads before retrieving HTML
-        
-        Returns:
-            str: HTML content if output_file is None, otherwise None
-        '''
         try:
-            # Start window monitoring if hiding enabled
             if self.hide_window:
                 self._setup_hidden_window()
-            
-            # Create driver with small delay for window monitor
-            if self.hide_window:
-                time.sleep(0.1)
+                time.sleep(0.05)
+
             self.driver = self._create_driver()
-            
-            # Wait for window monitor to complete
             if self.hide_window:
-                time.sleep(0.5)
+                time.sleep(0.15)
             
             # Navigate and bypass Cloudflare
             self.driver.get(url)
