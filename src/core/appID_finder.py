@@ -22,21 +22,16 @@ def get_steam_data(output_dir='assets'):
             app_list = response.json()['applist']['apps']
         except Exception as e:
             
-            # Fallback to GitHub sources
-            fallback_urls = [
-                "https://raw.githubusercontent.com/jsnli/steamappidlist/refs/heads/master/data/dlc_appid.json",
-                "https://raw.githubusercontent.com/jsnli/steamappidlist/refs/heads/master/data/games_appid.json",
-                "https://raw.githubusercontent.com/jsnli/steamappidlist/refs/heads/master/data/software_appid.json"
-            ]
+            # Fallback to GitHub source
+            fallback_url = "https://raw.githubusercontent.com/0xNullPointers/SteamGamesList/main/AppIDList.json"
             
-            app_list = []
-            for url in fallback_urls:
-                try:
-                    response = requests.get(url, timeout=30)
-                    response.raise_for_status()
-                    app_list.extend(response.json())
-                except Exception as e:
-                    print(f"Failed to fetch {url}: {e}")
+            try:
+                response = requests.get(fallback_url, timeout=30)
+                response.raise_for_status()
+                app_list = response.json()
+            except Exception as e:
+                print(f"Failed to fetch {fallback_url}: {e}")
+                app_list = []
         
         # Insert data into database if available
         if app_list:
