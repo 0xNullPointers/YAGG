@@ -28,3 +28,9 @@
 - Included functionality for reliable achievement fetching 
 - Improved image downloading logic
 - Added thread safety with mutex protection
+
+# v1.0.6
+- Fixed executable window title
+- Refactored error messages
+- Added fallback mechanism for APP_ID resolution
+- Improved browser detection for broader compatibility
