@@ -8,27 +8,28 @@ A Python-based GUI application for generating GSE (Goldberg Steam Emulator) conf
 2. **Fill in the required fields:**
    - **Account Name:** Desired Account name (optional)
    - **Game Name** **or** **AppID:**
-     - **Game Name:** Name of the game (required if AppID is not provided)
-     - **AppID:** Steam Application ID of the game (required if Game Name is not provided)
+     - **Game Name:** Name of the game (either this)
+     - **AppID:** Steam Application ID of the game (or this)
 3. **Select desired options:**
-   - **Use Steam:** Uses Steam as source
+   - **Use Steam:** Uses Steam as the source (achievements may not work)
    - **Local Save:** Enables saving in the game directory 
    - **Disable LAN Only:** Disables LAN-only mode
    - **Achievements Only:** Generates achievements only 
    - **Disable Overlay:** Disables the Steam overlay (useful if the game crashes)
+   - **Auto Replace:** Automatically place GSE files in Game directory
 4. **Click "Generate"** to create the GSE configuration
-5. Follow the **file picker popup** and select the **original** **steam_api(64).dll** from game folder
+5. Follow the **file picker popup** and select the game folder
 6. Generated GSE (or Achievements) can be found in the same application folder
 
 ## ⚙️ Installation
 
 ### 📦 Using the Executable (.exe)
 
-No installation required. Simply download `YAGG.zip` from the [releases](https://github.com/0xNullPointers/YAGG/releases/latest) page, extract it to a folder and run the executable.
+No installation required. Simply download `YAGG.zip` from the [releases](https://github.com/0xNullPointers/YAGG/releases/latest) page, extract it to a folder, and run the executable; the first run may take a little time to download and set up.
 
 ### 🐍 Using Python Source
 
-1. Ensure Python 3.9 or higher is installed
+1. Ensure Python 3.11 or higher is installed
 2. Install required packages:
 ```bash
 pip install -r requirements.txt
@@ -61,7 +62,8 @@ python main.py
 - **Local Save**: Store the saves in Game Directory
 - **Disable LAN Only**: Disables LAN-only mode in GSE
 - **Achievements Only**: Skips GSE and only generates Achievements
-- **Disable Overlay**: Disables the Steam overlay feature. Use if game keeps crashing
+- **Disable Overlay**: Disables the Steam overlay feature; enable this if the game keeps crashing.
+- **Auto Replace:** Automatically place GSE files in Game directory. No manual interaction needed
 
 ## ✨ Features
 
