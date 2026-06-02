@@ -1,0 +1,66 @@
+from PySide6.QtWidgets import QFrame, QGridLayout, QLabel, QLineEdit
+from PySide6.QtCore import Signal
+
+class InputPanel(QFrame):
+    username_changed = Signal(str)
+    game_name_changed = Signal(str)
+    app_id_changed = Signal(str)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.init_ui()
+
+    def init_ui(self):
+        layout = QGridLayout(self)
+        layout.setContentsMargins(8, 8, 8, 4)
+
+        # Account Name
+        account_label = QLabel("Account Name:")
+        self.user_account_entry = QLineEdit()
+        self.user_account_entry.setMinimumHeight(24)
+        self.user_account_entry.setPlaceholderText("e.g. gse orca")
+        self.user_account_entry.textChanged.connect(self.username_changed.emit)
+        layout.addWidget(account_label, 0, 0)
+        layout.addWidget(self.user_account_entry, 0, 1)
+
+        # Game Name
+        game_label = QLabel("Game Name:")
+        self.game_name_entry = QLineEdit()
+        self.game_name_entry.setMinimumHeight(24)
+        self.game_name_entry.setPlaceholderText("e.g. Counter-Strike 2")
+        self.game_name_entry.textChanged.connect(self._on_game_name_change)
+        layout.addWidget(game_label, 1, 0)
+        layout.addWidget(self.game_name_entry, 1, 1)
+
+        # AppID
+        appid_label = QLabel("AppID:")
+        self.app_id_entry = QLineEdit()
+        self.app_id_entry.setMinimumHeight(24)
+        self.app_id_entry.setPlaceholderText("e.g. 730")
+        self.app_id_entry.textChanged.connect(self._on_app_id_change)
+        layout.addWidget(appid_label, 2, 0)
+        layout.addWidget(self.app_id_entry, 2, 1)
+
+    def _on_game_name_change(self, text):
+        self.app_id_entry.setReadOnly(bool(text.strip()))
+        self.game_name_changed.emit(text)
+
+    def _on_app_id_change(self, text):
+        self.game_name_entry.setReadOnly(bool(text.strip()))
+        self.app_id_changed.emit(text)
+
+    def set_username(self, username):
+        self.user_account_entry.setText(username)
+
+    def get_username(self):
+        return self.user_account_entry.text().strip()
+
+    def get_game_name(self):
+        return self.game_name_entry.text().strip()
+
+    def get_app_id(self):
+        return self.app_id_entry.text().strip()
+
+    def set_game_info(self, app_id, game_name):
+        self.app_id_entry.setText(app_id)
+        self.game_name_entry.setText(game_name)
