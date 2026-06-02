@@ -39,20 +39,27 @@ def main():
         "--python-flag=no_randomization"
     ]
 
-    # Include modules
+    # Include modules and packages
     modules_to_include = [
         "src.core.achievements",
         "src.core.appID_finder",
         "src.core.cf_bypass",
         "src.core.dlc_gen",
         "src.core.goldberg_gen",
+        "src.core.network",
         "src.core.setupEmu",
         "src.core.threadManager",
-        "src.gui.GSE_Generator"
+        "src.gui.GSE_Generator",
+        "src.gui.utils"
+    ]
+    packages_to_include = [
+        "src.gui.widgets"
     ]
 
     for module in modules_to_include:
         nuitka_params.append(f"--include-module={module}")
+    for package in packages_to_include:
+        nuitka_params.append(f"--include-package={package}")
 
     # Add main script
     nuitka_params.append("main.py")
