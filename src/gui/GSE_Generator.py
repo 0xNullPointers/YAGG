@@ -7,6 +7,7 @@ from .widgets.input_panel import InputPanel
 from .widgets.controls_panel import ControlsPanel
 from .widgets.output_panel import OutputPanel
 from .widgets.status_panel import StatusPanel
+from .widgets.browse_dialog import BrowseDialog
 from src.core.logger import log_operation
 
 class AchievementFetcherGUI(QMainWindow):
@@ -65,10 +66,13 @@ class AchievementFetcherGUI(QMainWindow):
         # Place input panel and its sub-widgets
         main_layout.addWidget(self.input_panel, 0, 0)
         # Nest controls_panel inside input_panel's layout for consistent UI look
-        self.input_panel.layout().addWidget(self.controls_panel, 3, 0, 1, 2)
+        self.input_panel.layout().addWidget(self.controls_panel, 3, 0, 1, 3)
 
         main_layout.addWidget(self.output_panel, 1, 0)
         main_layout.addWidget(self.status_panel, 2, 0)
+        
+        # Let the output panel take up all the extra vertical space when maximized
+        main_layout.setRowStretch(1, 1)
 
     @log_operation()
     def setup_signals(self):
@@ -77,7 +81,21 @@ class AchievementFetcherGUI(QMainWindow):
         self.request_dll_selection.connect(self.select_dll)
 
         self.input_panel.username_changed.connect(self.save_username)
+        self.input_panel.browse_clicked.connect(self.show_browse_dialog)
         self.controls_panel.generate_clicked.connect(self.start_generate)
+
+    def show_browse_dialog(self):
+        dialog = BrowseDialog(self.controls_panel.config, self.settings_path, self)
+        dialog.game_selected.connect(self.on_browse_selected)
+        dialog.exec()
+
+    def on_browse_selected(self, app_id, game_name):
+        self.input_panel.set_game_info(app_id, game_name)
+
+    def setup_queue_checker(self):
+        self.queue_timer = QTimer()
+        self.queue_timer.timeout.connect(self.check_queue)
+        self.queue_timer.start(100)
 
     @property
     def thread_manager(self):
@@ -356,9 +374,8 @@ class AchievementFetcherGUI(QMainWindow):
     def closeEvent(self, event):
         # Save window geometry to settings
         try:
-            if self.controls_panel.config.has_section('Window'):
-                self.controls_panel.config.remove_section('Window')
-            self.controls_panel.config.add_section('Window')
+            if not self.controls_panel.config.has_section('Window'):
+                self.controls_panel.config.add_section('Window')
 
             # The configparser preserves keys without values as long as allow_no_value=True
             self.controls_panel.config.set('Window', '# DO NOT EDIT THESE', None)
