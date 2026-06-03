@@ -1,5 +1,5 @@
 from curl_cffi import requests
-from src.core.logger import log_operation
+from src.core.logger import log_operation, get_logger
 
 @log_operation()
 def create_session(impersonate: str = "safari15_5", timeout: int = 30) -> requests.Session:
@@ -35,8 +35,10 @@ def download_file(url: str, dest_path: str, session: requests.Session = None) ->
             with open(dest_path, 'wb') as f:
                 f.write(response.content)
             return True
-    except Exception:
-        pass
+        else:
+            get_logger(__name__).error(f"Failed to download {url}: Status {response.status_code}")
+    except Exception as e:
+        get_logger(__name__).error(f"Error downloading {url}: {str(e)}")
     finally:
         if close_session:
             session.close()

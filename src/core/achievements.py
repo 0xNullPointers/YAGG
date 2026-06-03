@@ -23,18 +23,21 @@ def download_images(appid: str, achievements: List[Dict], output_dir: str, silen
             image_file_name = actual_icon_name.split('/')[-1]
             if image_file_name in downloaded_images: continue
 
-            image_url = f"https://cdn.fastly.steamstatic.com/steamcommunity/public/images/apps/{appid}/{image_file_name}"
+            image_url = f"https://cdn.cloudflare.steamstatic.com/steamcommunity/public/images/apps/{appid}/{image_file_name}"
             image_path = os.path.join(image_folder, image_file_name)
 
             download_tasks.append((image_url, image_path))
             downloaded_images.add(image_file_name)
+
+    if not download_tasks:
+        return
 
     if not silent:
         print(f"Downloading {len(download_tasks)} images...")
 
     session = create_session()
     try:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
             future_to_url = {executor.submit(download_file, url, path, session): url for url, path in download_tasks}
 
             completed = 0
@@ -62,11 +65,18 @@ def fetch_from_steamdb(appid: str, output_dir: str, silent: bool = False) -> Lis
     if not html_content:
         raise RuntimeError("Failed to fetch HTML from SteamDB")
 
-    if not silent: print("  - Extracting achievements")
     soup = BeautifulSoup(html_content, 'html.parser')
+    achievement_divs = soup.select('div.achievement')
+
+    if not achievement_divs:
+        return []
+
+    if not silent:
+        print("  - Extracting achievements")
+
     achievements = []
 
-    for achievement_div in soup.select('div.achievement'):
+    for achievement_div in achievement_divs:
         name_div = achievement_div.select_one('div.achievement_api')
         if not name_div: continue
 
@@ -107,19 +117,20 @@ def fetch_from_steamdb(appid: str, output_dir: str, silent: bool = False) -> Lis
 def fetch_from_steamcommunity(appid: str, output_dir: str, silent: bool = False) -> List[Dict]:
     url = f"https://steamcommunity.com/stats/{appid}/achievements/"
     if not silent: print("Fetching achievements from Steam Community...")
-
     if not silent: print("  - Capturing HTML")
     with create_session() as session:
         response = session.get(url, timeout=30)
-
-        if not silent: print("  - Extracting achievements")
         soup = BeautifulSoup(response.content, 'html.parser')
-
-        achievements = []
         achievement_rows = soup.select('.achieveRow')
 
-        if not silent: print(f"Found {len(achievement_rows)} achievements")
+        if not achievement_rows:
+            return []
 
+        if not silent:
+            print("  - Extracting achievements")
+            print(f"Found {len(achievement_rows)} achievements")
+
+        achievements = []
         for idx, achievement in enumerate(achievement_rows):
             img_tag = achievement.select_one('.achieveImgHolder img')
             icon = img_tag['src'].split('/')[-1] if img_tag and img_tag.get('src') else ""

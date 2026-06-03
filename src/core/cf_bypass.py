@@ -225,26 +225,60 @@ class CloudflareBypasser:
 
     @log_operation()
     def _find_turnstile_input(self):
-        # Form-field variant
+        # Form-field variant: <input name="...turnstile..."> buried in nested shadow DOMs
         for ele in self.driver.eles("tag:input"):
             if "turnstile" in ele.attrs.get("name", ""):
-                return (
-                    ele.parent()
-                    .shadow_root.child()("tag:body")
-                    .shadow_root("tag:input")
-                )
-        # Iframe variant
-        ifr = self.driver.ele("tag:body").shadow_root.ele("tag:iframe")
-        if ifr:
-            return ifr.content_frame.ele("tag:body").shadow_root.ele("tag:input")
-        return None
+                sr1 = ele.parent().shadow_root      # @property → ShadowRoot | None (plain None)
+                if sr1 is None:
+                    continue
+                body = sr1.child()("tag:body")
+                if not body:
+                    continue
+                sr2 = body.shadow_root              # @property → ShadowRoot | None
+                if sr2 is None:
+                    continue
+                return sr2("tag:input")             # ShadowRoot.__call__ == .ele()
+
+        # Iframe variant: shadow root on <body> contains an <iframe> with a second shadow root
+        body = self.driver.ele("tag:body")
+        if not body:
+            return None
+        sr = body.shadow_root                       # @property → ShadowRoot | None
+        if sr is None:
+            return None
+        ifr = sr.ele("tag:iframe")
+        if not ifr:
+            return None
+        frame_body = ifr.content_frame.ele("tag:body")
+        if not frame_body:
+            return None
+        sr2 = frame_body.shadow_root                # @property → ShadowRoot | None
+        if sr2 is None:
+            return None
+        return sr2.ele("tag:input")
 
     @log_operation()
     def bypass(self) -> None:
+        from DrissionPage.errors import PageDisconnectedError, ContextLostError
+
         tries = 0
-        while "just a moment" in self.driver.title.lower():
+        while True:
+            # title is outside a try in the original — but CF redirects can make it
+            # throw PageDisconnectedError before we even enter the inner try block.
+            try:
+                if "just a moment" not in self.driver.title.lower():
+                    break
+            except (PageDisconnectedError, ContextLostError):
+                # Page is mid-redirect/reload; wait and re-check title
+                time.sleep(1)
+                tries += 1
+                if 0 <= self.max_retries <= tries:
+                    break
+                continue
+
             if 0 <= self.max_retries <= tries:
                 break
+
             try:
                 target = self._find_turnstile_input()
                 if target:
@@ -252,8 +286,12 @@ class CloudflareBypasser:
                     time.sleep(2)
                 else:
                     time.sleep(1)
-            except Exception:  # noqa: BLE001 - CF DOM can be volatile
+            except (PageDisconnectedError, ContextLostError):
+                # CF navigated away while we were traversing the shadow DOM — wait for reload
                 time.sleep(1)
+            except Exception:  # noqa: BLE001 — CF DOM structure can be volatile
+                time.sleep(1)
+
             tries += 1
 
 # Main class
