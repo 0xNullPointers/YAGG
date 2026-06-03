@@ -1,5 +1,4 @@
-import os
-import concurrent.futures
+import os, concurrent.futures
 from bs4 import BeautifulSoup
 from src.core.network import create_session
 

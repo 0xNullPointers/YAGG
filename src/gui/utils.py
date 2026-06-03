@@ -1,5 +1,4 @@
-import os
-import sys
+import os, sys
 
 def get_resource_path(filename):
     try:

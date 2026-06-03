@@ -1,6 +1,4 @@
-import os
-import shutil
-import subprocess
+import os, shutil, subprocess
 
 EMU_FOLDER = os.path.join("assets", "goldberg_emu")
 
@@ -32,7 +30,7 @@ def modify_overlay_config(src_path, dst_path, disable_overlay):
 def generate_interfaces(dll_path):
     tools_dir = find_dir(EMU_FOLDER, "tools", "generate_interfaces")
     dll_name = os.path.basename(dll_path).lower()
-    generator_exe = f"generate_interfaces_{'x64' if dll_name == 'steam_api64.dll' else 'x32'}.exe"
+    generator_exe = f"generate_interfaces_{'x64' if dll_name == 'steam_api64.dll' else 'x86'}.exe"
 
     subprocess.run([os.path.join(tools_dir, generator_exe), dll_path], capture_output=True, text=True, cwd=os.path.dirname(dll_path), creationflags=subprocess.CREATE_NO_WINDOW)
 
@@ -50,7 +48,7 @@ def generate_emu(game_dir, app_id, dll_path, disable_overlay=False):
         dll_name = os.path.basename(dll_path).lower()
         exp_source = os.path.join(
             find_dir(EMU_FOLDER, "experimental"),
-            "x64" if dll_name == "steam_api64.dll" else "x32"
+            "x64" if dll_name == "steam_api64.dll" else "x86"
         )
 
         for file in os.listdir(exp_source):

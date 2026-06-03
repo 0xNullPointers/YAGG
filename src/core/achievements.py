@@ -1,6 +1,4 @@
-import os
-import json
-import concurrent.futures
+import os, json, concurrent.futures
 from bs4 import BeautifulSoup
 from typing import List, Dict, Set, Optional
 from src.core.cf_bypass import CF_Scraper

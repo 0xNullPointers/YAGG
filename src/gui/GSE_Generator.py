@@ -1,7 +1,4 @@
-import os
-import sys
-import queue
-import shutil
+import os, sys, queue, shutil
 from PySide6.QtWidgets import QMainWindow, QWidget, QGridLayout, QFileDialog
 from PySide6.QtCore import Qt, Signal, QTimer
 from PySide6.QtGui import QIcon

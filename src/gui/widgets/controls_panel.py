@@ -1,5 +1,4 @@
-import os
-import configparser
+import os, configparser
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QVBoxLayout, QGridLayout, QCheckBox, QPushButton
 from PySide6.QtCore import Qt, Signal
 
