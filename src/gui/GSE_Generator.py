@@ -275,21 +275,16 @@ class AchievementFetcherGUI(QMainWindow):
 
     def _generate_achievements(self, settings_dir, app_id, use_steam):
         self.write_output("Fetching Achievements...")
-        original_cwd = os.getcwd()
-        try:
-            os.chdir(settings_dir)
-            from src.core.achievements import fetch_from_steamcommunity, fetch_from_steamdb
-            achievements = None
-            if use_steam:
-                try: achievements = fetch_from_steamcommunity(app_id, silent=True)
-                except: pass
-            else:
-                try: achievements = fetch_from_steamdb(app_id, silent=True) or fetch_from_steamcommunity(app_id, silent=True)
-                except: pass
-            if not achievements:
-                self.write_output("No achievements found.")
-        finally:
-            os.chdir(original_cwd)
+        from src.core.achievements import fetch_from_steamcommunity, fetch_from_steamdb
+        achievements = None
+        if use_steam:
+            try: achievements = fetch_from_steamcommunity(app_id, settings_dir, silent=False)
+            except: pass
+        else:
+            try: achievements = fetch_from_steamdb(app_id, settings_dir, silent=False) or fetch_from_steamcommunity(app_id, settings_dir, silent=False)
+            except: pass
+        if not achievements:
+            self.write_output("No achievements found.")
 
     def start_generate(self):
         game_name = self.input_panel.get_game_name()
