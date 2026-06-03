@@ -1,6 +1,8 @@
 import os, sqlite3
 from src.core.network import create_session
+from src.core.logger import log_operation
 
+@log_operation()
 def get_steam_data(output_dir='assets'):
     os.makedirs(output_dir, exist_ok=True)
     db_file = os.path.join(output_dir, 'steam_data.db')
@@ -31,6 +33,7 @@ def get_steam_data(output_dir='assets'):
 
     return conn
 
+@log_operation()
 def get_steam_app_by_name(app_name):
     conn = get_steam_data()
     try:
@@ -52,6 +55,7 @@ def get_steam_app_by_name(app_name):
     finally:
         conn.close()
 
+@log_operation()
 def get_steam_app_by_id(appid):
     conn = get_steam_data()
     try:

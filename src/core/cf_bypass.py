@@ -1,6 +1,7 @@
 import time, ctypes, winreg, sys, os, shutil, tempfile, threading
 from ctypes import wintypes
 from DrissionPage import ChromiumPage, ChromiumOptions
+from src.core.logger import log_operation
 
 if sys.platform == "win32":
     user32 = ctypes.WinDLL("user32", use_last_error=True)
@@ -60,6 +61,8 @@ class StealthShield(threading.Thread):
     HWND_MESSAGE plane so it never appears in Alt-Tab or the taskbar,
     and never steals keyboard focus from the caller's window.
     """
+
+    @log_operation()
     def __init__(self) -> None:
         super().__init__(daemon=True)
         self._stop_event = threading.Event()
@@ -70,6 +73,7 @@ class StealthShield(threading.Thread):
         self._cb: ctypes.CFUNCTYPE | None = None  # type: ignore[type-arg]
 
     # Internal helpers
+    @log_operation(mute=True)
     def _hide_window(self, hwnd: int) -> None:
         """Reparent to the message-only plane and strip all visibility styles."""
         _SetParent(hwnd, HWND_MESSAGE)
@@ -81,12 +85,14 @@ class StealthShield(threading.Thread):
         )
         _ShowWindow(hwnd, SW_HIDE)
 
+    @log_operation(mute=True)
     def _restore_focus(self) -> None:
         """Give focus back to whoever had it before we launched the browser."""
         if self._orig_hwnd and _GetForegroundWindow() != self._orig_hwnd:
             _SetForegroundWindow(self._orig_hwnd)
 
     # WinEvent callback
+    @log_operation(mute=True)
     def _on_window_created(self, _hHook, _event, hwnd, _idObj, _idChild, _dwTid, _dwTime) -> None:
         with _target_pid_lock:
             target = _TARGET_PID
@@ -102,6 +108,7 @@ class StealthShield(threading.Thread):
         self._restore_focus()
 
     # Thread entry point
+    @log_operation()
     def run(self) -> None:
         self._tid = _GetCurrentThreadId()
         self._orig_hwnd = _GetForegroundWindow()
@@ -141,6 +148,7 @@ class StealthShield(threading.Thread):
         if self._orig_tid and self._orig_tid != self._tid:
             _AttachThreadInput(self._tid, self._orig_tid, False)
 
+    @log_operation()
     def stop(self) -> None:
         self._stop_event.set()
         if self._tid:
@@ -150,6 +158,7 @@ class StealthShield(threading.Thread):
 try:
     import DrissionPage._functions.browser as _dp_browser
 
+    @log_operation()
     def _patched_run_browser(port, path, args):
         global _TARGET_PID
         from subprocess import Popen, DEVNULL, STARTUPINFO, STARTF_USESHOWWINDOW
@@ -181,6 +190,7 @@ except ImportError:
     pass
 
 # Browser discovery
+@log_operation()
 def find_browsers() -> list[tuple[str, str]]:
     found: list[tuple[str, str]] = []
     reg_bases = [
@@ -208,11 +218,12 @@ def find_browsers() -> list[tuple[str, str]]:
 # Cloudflare Turnstile bypasser
 class CloudflareBypasser:
     __slots__ = ("driver", "max_retries")
-
+    @log_operation()
     def __init__(self, driver: ChromiumPage, max_retries: int = -1) -> None:
         self.driver = driver
         self.max_retries = max_retries
 
+    @log_operation()
     def _find_turnstile_input(self):
         # Form-field variant
         for ele in self.driver.eles("tag:input"):
@@ -228,6 +239,7 @@ class CloudflareBypasser:
             return ifr.content_frame.ele("tag:body").shadow_root.ele("tag:input")
         return None
 
+    @log_operation()
     def bypass(self) -> None:
         tries = 0
         while "just a moment" in self.driver.title.lower():
@@ -253,6 +265,7 @@ class CF_Scraper:
 
     __slots__ = ("_hide", "_browser_path", "driver", "_tmp_dir", "_shield")
 
+    @log_operation()
     def __init__(self, hide_window: bool = True, browser_path: str | None = None) -> None:
         self._hide = hide_window
         self.driver: ChromiumPage | None = None
@@ -267,6 +280,7 @@ class CF_Scraper:
                 raise RuntimeError("No compatible Chromium-family browser found.")
             self._browser_path = browsers[0][1]
 
+    @log_operation()
     def scrape(self, url: str, max_retries: int = -1, page_load_wait: float = 0) -> str:
         try:
             co = ChromiumOptions().set_browser_path(self._browser_path)
@@ -300,6 +314,7 @@ class CF_Scraper:
         finally:
             self.cleanup()
 
+    @log_operation()
     def cleanup(self) -> None:
         if self._shield:
             self._shield.stop()
@@ -317,8 +332,10 @@ class CF_Scraper:
             shutil.rmtree(self._tmp_dir, ignore_errors=True)
             self._tmp_dir = None
 
+    @log_operation()
     def __enter__(self):
         return self
 
+    @log_operation()
     def __exit__(self, *_):
         self.cleanup()

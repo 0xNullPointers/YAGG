@@ -1,5 +1,7 @@
 import os, sys
+from src.core.logger import log_operation
 
+@log_operation()
 def get_resource_path(filename):
     try:
         base_path = sys._MEIPASS  # type: ignore
@@ -8,14 +10,17 @@ def get_resource_path(filename):
     return os.path.join(base_path, filename)
 
 class RedirectText:
+    @log_operation()
     def __init__(self, output_callback):
         self.output_callback = output_callback
         self.last_line = ""
 
+    @log_operation(mute=True)
     def write(self, string):
         cleaned_string = string.replace('\r', '').replace('\n', '').strip()
         if cleaned_string:
             self.output_callback(cleaned_string + '\n')
 
+    @log_operation()
     def flush(self):
         pass

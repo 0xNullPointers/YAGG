@@ -1,17 +1,21 @@
 from PySide6.QtWidgets import QFrame, QGridLayout, QLabel
 from PySide6.QtGui import QColor, QPalette
+from src.core.logger import log_operation
 
 class StatusPanel(QFrame):
+    @log_operation()
     def __init__(self, parent=None):
         super().__init__(parent)
         self.init_ui()
 
+    @log_operation()
     def init_ui(self):
         self.setFrameStyle(QFrame.Shape.Panel | QFrame.Shadow.Raised)
         layout = QGridLayout(self)
         self.status_label = QLabel("Status: Ready")
         layout.addWidget(self.status_label, 0, 0)
 
+    @log_operation()
     def update_status(self, message, is_error=False):
         prefix = "Error: " if is_error else "Status: "
         self.status_label.setText(prefix + message)

@@ -1,15 +1,18 @@
 from PySide6.QtWidgets import QFrame, QGridLayout, QLabel, QLineEdit
 from PySide6.QtCore import Signal
+from src.core.logger import log_operation
 
 class InputPanel(QFrame):
     username_changed = Signal(str)
     game_name_changed = Signal(str)
     app_id_changed = Signal(str)
 
+    @log_operation()
     def __init__(self, parent=None):
         super().__init__(parent)
         self.init_ui()
 
+    @log_operation()
     def init_ui(self):
         layout = QGridLayout(self)
         layout.setContentsMargins(8, 8, 8, 4)
@@ -41,26 +44,33 @@ class InputPanel(QFrame):
         layout.addWidget(appid_label, 2, 0)
         layout.addWidget(self.app_id_entry, 2, 1)
 
+    @log_operation()
     def _on_game_name_change(self, text):
         self.app_id_entry.setReadOnly(bool(text.strip()))
         self.game_name_changed.emit(text)
 
+    @log_operation()
     def _on_app_id_change(self, text):
         self.game_name_entry.setReadOnly(bool(text.strip()))
         self.app_id_changed.emit(text)
 
+    @log_operation()
     def set_username(self, username):
         self.user_account_entry.setText(username)
 
+    @log_operation()
     def get_username(self):
         return self.user_account_entry.text().strip()
 
+    @log_operation()
     def get_game_name(self):
         return self.game_name_entry.text().strip()
 
+    @log_operation()
     def get_app_id(self):
         return self.app_id_entry.text().strip()
 
+    @log_operation()
     def set_game_info(self, app_id, game_name):
         self.app_id_entry.setText(app_id)
         self.game_name_entry.setText(game_name)

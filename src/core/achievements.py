@@ -3,7 +3,9 @@ from bs4 import BeautifulSoup
 from typing import List, Dict, Set, Optional
 from src.core.cf_bypass import CF_Scraper
 from src.core.network import create_session, download_file
+from src.core.logger import log_operation
 
+@log_operation()
 def download_images(appid: str, achievements: List[Dict], output_dir: str, silent: bool = False):
     image_folder = os.path.join(output_dir, "images")
     os.makedirs(image_folder, exist_ok=True)
@@ -34,14 +36,14 @@ def download_images(appid: str, achievements: List[Dict], output_dir: str, silen
     try:
         with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
             future_to_url = {executor.submit(download_file, url, path, session): url for url, path in download_tasks}
-            
+
             completed = 0
             for future in concurrent.futures.as_completed(future_to_url):
                 completed += 1
                 if not silent:
                     dots = "." * ((completed - 1) % 3 + 1)
                     print(f"  - Download Image ({completed}/{len(download_tasks)}) {dots}")
-                
+
         if not silent:
             # Re-calculating successful results if needed, though as_completed loop already finished
             successful = sum(1 for f in future_to_url if f.result())
@@ -49,6 +51,7 @@ def download_images(appid: str, achievements: List[Dict], output_dir: str, silen
     finally:
         session.close()
 
+@log_operation()
 def fetch_from_steamdb(appid: str, output_dir: str, silent: bool = False) -> List[Dict]:
     if not silent: print("Fetching achievements from SteamDB...")
 
@@ -100,6 +103,7 @@ def fetch_from_steamdb(appid: str, output_dir: str, silent: bool = False) -> Lis
     download_images(appid, achievements, output_dir, silent)
     return achievements
 
+@log_operation()
 def fetch_from_steamcommunity(appid: str, output_dir: str, silent: bool = False) -> List[Dict]:
     url = f"https://steamcommunity.com/stats/{appid}/achievements/"
     if not silent: print("Fetching achievements from Steam Community...")
@@ -107,7 +111,7 @@ def fetch_from_steamcommunity(appid: str, output_dir: str, silent: bool = False)
     if not silent: print("  - Capturing HTML")
     with create_session() as session:
         response = session.get(url, timeout=30)
-        
+
         if not silent: print("  - Extracting achievements")
         soup = BeautifulSoup(response.content, 'html.parser')
 

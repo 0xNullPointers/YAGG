@@ -1,10 +1,12 @@
 import os, configparser
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QVBoxLayout, QGridLayout, QCheckBox, QPushButton
 from PySide6.QtCore import Qt, Signal
+from src.core.logger import log_operation
 
 class ControlsPanel(QFrame):
     generate_clicked = Signal()
 
+    @log_operation()
     def __init__(self, settings_path, parent=None):
         super().__init__(parent)
         self.settings_path = settings_path
@@ -13,12 +15,14 @@ class ControlsPanel(QFrame):
         self.load_settings()
         self.init_ui()
 
+    @log_operation()
     def load_settings(self):
         if os.path.exists(self.settings_path):
             self.config.read(self.settings_path)
         if 'Settings' not in self.config:
             self.config['Settings'] = {}
 
+    @log_operation()
     def init_ui(self):
         self.setFixedHeight(100)
         layout = QHBoxLayout(self)
@@ -33,12 +37,14 @@ class ControlsPanel(QFrame):
         checkbox_layout.setContentsMargins(0, 0, 0, 0)
 
         # Helper to create checkbox
+        @log_operation()
         def create_checkbox(name, label, tooltip):
             checkbox = QCheckBox(label)
             checkbox.setToolTip(tooltip)
             checkbox.setToolTipDuration(5000)
             checkbox.setChecked(self.config.getboolean('Settings', name, fallback=False))
 
+            @log_operation()
             def on_change(state):
                 self.config['Settings'][name] = str(bool(state))
                 with open(self.settings_path, 'w') as f:
@@ -78,6 +84,7 @@ class ControlsPanel(QFrame):
 
         layout.addWidget(button_frame)
 
+    @log_operation()
     def is_checked(self, name):
         if name == 'use_steam': return self.use_steam.isChecked()
         if name == 'use_local_save': return self.use_local_save.isChecked()
@@ -87,5 +94,6 @@ class ControlsPanel(QFrame):
         if name == 'auto_replace': return self.auto_replace.isChecked()
         return False
 
+    @log_operation()
     def set_generate_enabled(self, enabled):
         self.generate_btn.setEnabled(enabled)

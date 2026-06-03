@@ -1,4 +1,5 @@
 from PySide6.QtCore import QThread, QObject, Signal, Slot, QMutex
+from src.core.logger import log_operation
 
 class WorkerSignals(QObject):
     finished = Signal()
@@ -6,6 +7,7 @@ class WorkerSignals(QObject):
     error = Signal(Exception)
 
 class Worker(QObject):
+    @log_operation()
     def __init__(self, function, *args, **kwargs):
         super().__init__()
         self.function = function
@@ -14,6 +16,7 @@ class Worker(QObject):
         self.signals = WorkerSignals()
 
     @Slot()
+    @log_operation()
     def run(self):
         try:
             result = self.function(*self.args, **self.kwargs)
@@ -24,10 +27,12 @@ class Worker(QObject):
             self.signals.finished.emit()
 
 class ThreadManager:
+    @log_operation()
     def __init__(self):
         self.threads = []
         self.mutex = QMutex()
 
+    @log_operation()
     def _safe_remove_thread(self, thread, worker):
         self.mutex.lock()
         try:
@@ -38,6 +43,7 @@ class ThreadManager:
         finally:
             self.mutex.unlock()
 
+    @log_operation()
     def run_function(self, function, *args, **kwargs):
         # Create thread and worker
         thread = QThread()
@@ -49,7 +55,7 @@ class ThreadManager:
         worker.signals.finished.connect(thread.quit)
         worker.signals.finished.connect(worker.deleteLater)
         thread.finished.connect(thread.deleteLater)
-        
+
         # Use a safe remove method if thread is already removed
         thread.finished.connect(lambda t=thread, w=worker: self._safe_remove_thread(t, w))
 
@@ -64,6 +70,7 @@ class ThreadManager:
         thread.start()
         return worker.signals
 
+    @log_operation()
     def cleanup(self):
         self.mutex.lock()
         try:
@@ -71,13 +78,17 @@ class ThreadManager:
             threads_copy = self.threads[:]
         finally:
             self.mutex.unlock()
-        
+
         # Quit all running threads
         for thread, _ in threads_copy:
-            if thread.isRunning():
-                thread.quit()
-                thread.wait(1000)
-        
+            try:
+                if thread.isRunning():
+                    thread.quit()
+                    thread.wait(1000)
+            except RuntimeError:
+                # Thread object already deleted
+                continue
+
         # Clear the list with mutex protection
         self.mutex.lock()
         try:

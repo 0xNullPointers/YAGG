@@ -1,7 +1,9 @@
 import os, shutil, subprocess
+from src.core.logger import log_operation
 
 EMU_FOLDER = os.path.join("assets", "goldberg_emu")
 
+@log_operation()
 def find_dir(base_dir, target_dir, extra_check=None):
     for root, dirs, _ in os.walk(base_dir):
         if target_dir in dirs:
@@ -12,6 +14,7 @@ def find_dir(base_dir, target_dir, extra_check=None):
             return found_dir
     return None
 
+@log_operation()
 def modify_overlay_config(src_path, dst_path, disable_overlay):
     with open(src_path, 'r') as f:
         lines = f.readlines()
@@ -27,6 +30,7 @@ def modify_overlay_config(src_path, dst_path, disable_overlay):
             else:
                 f.write(line)
 
+@log_operation()
 def generate_interfaces(dll_path):
     tools_dir = find_dir(EMU_FOLDER, "tools", "generate_interfaces")
     dll_name = os.path.basename(dll_path).lower()
@@ -36,6 +40,7 @@ def generate_interfaces(dll_path):
 
     return os.path.join(os.path.dirname(dll_path), "steam_interfaces.txt")
 
+@log_operation()
 def generate_emu(game_dir, app_id, dll_path, disable_overlay=False):
     try:
         if not dll_path or not os.path.exists(dll_path):

@@ -1,11 +1,13 @@
 import os
 from src.core.network import download_file
+from src.core.logger import log_operation
 
 SEVENZIP_PATH = os.path.join("assets", "7zip", "7za.exe")
 GOLDBERG_URL = "https://github.com/0xNullPointers/gbe_fork/releases/latest/download/emu-win-release.7z"
 EMU_FOLDER = os.path.join("assets", "goldberg_emu")
 ARCHIVE_NAME = "emu-win-release.7z"
 
+@log_operation()
 def download_goldberg():
     os.makedirs(EMU_FOLDER, exist_ok=True)
     archive_path = os.path.join(EMU_FOLDER, ARCHIVE_NAME)
@@ -16,6 +18,7 @@ def download_goldberg():
         return archive_path
     raise RuntimeError("Failed to download Goldberg emulator")
 
+@log_operation()
 def extract_archive(archive_path):
     import subprocess
     try:

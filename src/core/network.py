@@ -1,5 +1,7 @@
 from curl_cffi import requests
+from src.core.logger import log_operation
 
+@log_operation()
 def create_session(impersonate: str = "safari15_5", timeout: int = 30) -> requests.Session:
     headers = {
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.5 Safari/605.1.15",
@@ -19,6 +21,7 @@ def create_session(impersonate: str = "safari15_5", timeout: int = 30) -> reques
 
     return session
 
+@log_operation()
 def download_file(url: str, dest_path: str, session: requests.Session = None) -> bool:
     """Download a file from a URL to a destination path."""
     close_session = False
