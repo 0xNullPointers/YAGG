@@ -1,6 +1,6 @@
 import os, sys, shutil
 from PySide6.QtWidgets import QMainWindow, QWidget, QGridLayout, QFileDialog
-from PySide6.QtCore import Qt, Signal, QTimer
+from PySide6.QtCore import Qt, Signal, QTimer, QByteArray
 from PySide6.QtGui import QIcon
 from .utils import get_resource_path, RedirectText
 from .widgets.input_panel import InputPanel
@@ -37,7 +37,17 @@ class AchievementFetcherGUI(QMainWindow):
         self.setWindowTitle("YAGG - GSE Generator")
         self.resize(700, 500)
         self.setMinimumSize(500, 500)
-        self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.WindowMinimizeButtonHint | Qt.WindowType.WindowCloseButtonHint)
+        self.setMaximumSize(900, 650)
+
+        # Restore window geometry from settings
+        try:
+            geom = self.controls_panel.config.get('Window', 'geometry', fallback=None)
+            if geom:
+                self.restoreGeometry(QByteArray.fromHex(geom.encode()))
+        except Exception:
+            pass
+
+        self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.WindowMinimizeButtonHint | Qt.WindowType.WindowMaximizeButtonHint | Qt.WindowType.WindowCloseButtonHint)
         icon_path = get_resource_path('icon.ico')
         self.setWindowIcon(QIcon(icon_path))
 
@@ -344,6 +354,21 @@ class AchievementFetcherGUI(QMainWindow):
 
     @log_operation()
     def closeEvent(self, event):
+        # Save window geometry to settings
+        try:
+            if self.controls_panel.config.has_section('Window'):
+                self.controls_panel.config.remove_section('Window')
+            self.controls_panel.config.add_section('Window')
+
+            # The configparser preserves keys without values as long as allow_no_value=True
+            self.controls_panel.config.set('Window', '# DO NOT EDIT THESE', None)
+            self.controls_panel.config.set('Window', 'geometry', self.saveGeometry().toHex().data().decode())
+
+            with open(self.settings_path, 'w') as f:
+                self.controls_panel.config.write(f)
+        except Exception:
+            pass
+
         self.hide()
         event.accept()
         if self._thread_manager is not None:
