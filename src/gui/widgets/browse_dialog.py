@@ -1,14 +1,95 @@
 import os, sqlite3
-from PySide6.QtWidgets import QDialog, QVBoxLayout, QLineEdit, QHBoxLayout, QListView, QAbstractItemView
-from PySide6.QtCore import Qt, QByteArray, QAbstractListModel, QModelIndex, QThreadPool, QRunnable, Signal, QTimer, QSize, QPropertyAnimation, QEasingCurve, QAbstractAnimation
-from PySide6.QtGui import QPixmap, QImage
+from PySide6.QtWidgets import QDialog, QVBoxLayout, QLineEdit, QHBoxLayout, QListView, QAbstractItemView, QStyledItemDelegate, QStyle
+from PySide6.QtCore import Qt, QByteArray, QAbstractListModel, QModelIndex, QThreadPool, QRunnable, Signal, QTimer, QSize, QPropertyAnimation, QEasingCurve, QAbstractAnimation, QRectF
+from PySide6.QtGui import QPixmap, QImage, QPainter, QPainterPath
 from src.core.network import create_session
 
 CACHE_DIR = os.path.join(os.getcwd(), "assets", "cache", "posters")
 os.makedirs(CACHE_DIR, exist_ok=True)
 DB_PATH = os.path.join(os.getcwd(), "assets", "steam_data.db")
 
+class GameItemDelegate(QStyledItemDelegate):
+    """
+    Highly optimized custom delegate to render posters and beautifully formatted text directly.
+    Bypasses the need for heavy UI widgets per item.
+    """
+    def paint(self, painter, option, index):
+        painter.save()
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.TextAntialiasing)
+
+        rect = option.rect
+
+        is_selected = option.state & QStyle.StateFlag.State_Selected
+        is_hovered = option.state & QStyle.StateFlag.State_MouseOver
+
+        # 4) Dynamic selection color that blends smoothly with the OS theme
+        if is_selected or is_hovered:
+            if is_selected:
+                bg_color = option.palette.highlight().color()
+                bg_color.setAlpha(50) # Soft, modern alpha blend
+            else:
+                bg_color = option.palette.text().color()
+                bg_color.setAlpha(20) # Grayish opaque hover
+
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(bg_color)
+
+            # Constrain the background box so it isn't too wide if grid expands
+            box_w = 150
+            box_x = rect.x() + (rect.width() - box_w) / 2
+            selection_rect = QRectF(box_x, rect.y() + 2, box_w, rect.height() - 4)
+            painter.drawRoundedRect(selection_rect, 10, 10)
+
+        name, appid = index.data(Qt.ItemDataRole.UserRole)
+        pixmap = index.data(Qt.ItemDataRole.DecorationRole)
+
+        # 1) Image boundaries (Centered in the item)
+        img_w, img_h = 120, 180
+        img_x = rect.x() + (rect.width() - img_w) / 2
+        img_y = rect.y() + 10
+        img_rect = QRectF(img_x, img_y, img_w, img_h)
+
+        if pixmap and not pixmap.isNull():
+            # Round the poster corners
+            path = QPainterPath()
+            path.addRoundedRect(img_rect, 8, 8)
+            painter.setClipPath(path)
+            painter.drawPixmap(img_rect.toRect(), pixmap)
+            painter.setClipping(False)
+
+        # 2) Text boundaries (Bottom center)
+        text_rect = QRectF(rect.x() + 5, img_rect.bottom() + 12, rect.width() - 10, 50)
+
+        font = painter.font()
+
+        # Game Name (Bold)
+        font.setBold(True)
+        painter.setFont(font)
+        painter.setPen(option.palette.text().color())
+        metrics = painter.fontMetrics()
+        elided_name = metrics.elidedText(name, Qt.TextElideMode.ElideRight, int(text_rect.width()))
+        painter.drawText(text_rect, Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop, elided_name)
+
+        # AppID (Lighter, subtle styling)
+        font.setBold(False)
+        painter.setFont(font)
+        id_color = option.palette.text().color()
+        id_color.setAlpha(150) # Subtly blend the ID color
+        painter.setPen(id_color)
+        id_rect = QRectF(text_rect.x(), text_rect.y() + 18, text_rect.width(), 20)
+        painter.drawText(id_rect, Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop, f"I.D. {appid}")
+
+        painter.restore()
+
+    def sizeHint(self, option, index):
+        return QSize(160, 260)
+
+
 class SmoothScrollListView(QListView):
+    """
+    Industrial-standard smooth scrolling using Qt's internal C++ animation engine.
+    """
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setVerticalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
@@ -31,7 +112,7 @@ class SmoothScrollListView(QListView):
         else:
             current_target = bar.value()
 
-        step_size = 200 # Pixels to jump per scroll notch
+        step_size = 200
         direction = -1 if delta > 0 else 1
 
         new_target = current_target + (direction * step_size)
@@ -44,6 +125,7 @@ class SmoothScrollListView(QListView):
         self._v_anim.start()
 
         event.accept()
+
 
 class ImageLoader(QRunnable):
     def __init__(self, appid, finished_signal):
@@ -91,6 +173,7 @@ class ImageLoader(QRunnable):
             # Signal source has been deleted (dialog closed)
             pass
 
+
 class GameListModel(QAbstractListModel):
     image_loaded = Signal(int, QImage)
 
@@ -111,8 +194,9 @@ class GameListModel(QAbstractListModel):
 
         appid, name = self.games[index.row()]
 
-        if role == Qt.ItemDataRole.DisplayRole:
-            return f"{name}\n({appid})"
+        # Supply raw data to the custom delegate
+        if role == Qt.ItemDataRole.UserRole:
+            return (name, appid)
 
         elif role == Qt.ItemDataRole.DecorationRole:
             if appid in self.pixmaps:
@@ -155,6 +239,7 @@ class GameListModel(QAbstractListModel):
         if 0 <= row < len(self.games):
             return self.games[row]
         return None, None
+
 
 class BrowseDialog(QDialog):
     game_selected = Signal(str, str)
@@ -206,29 +291,26 @@ class BrowseDialog(QDialog):
 
         layout.addLayout(search_layout)
 
+        # 5) Add spacing below the search bar to prevent it from being too narrow
+        layout.addSpacing(20)
+
         # Lazy Loading Game List View
         self.list_view = SmoothScrollListView()
+        self.list_view.setMouseTracking(True) # Enable hover states
         self.list_view.setViewMode(QListView.ViewMode.IconMode)
         self.list_view.setResizeMode(QListView.ResizeMode.Adjust)
-        self.list_view.setWordWrap(True)
-        self.list_view.setSpacing(15)
+        self.list_view.setSpacing(15) # Revert to Qt's native spacing handler
         self.list_view.setGridSize(QSize(160, 260))
         self.list_view.setUniformItemSizes(True)
-        self.list_view.setVerticalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
-        self.list_view.setHorizontalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
+
+        # Assign our performant custom painter delegate
+        self.list_view.setItemDelegate(GameItemDelegate(self.list_view))
 
         self.list_view.setStyleSheet("""
             QListView {
                 border: none;
                 background-color: transparent;
                 outline: 0;
-            }
-            QListView::item {
-                padding: 5px;
-            }
-            QListView::item:selected {
-                background-color: rgba(76, 175, 80, 0.3);
-                border-radius: 8px;
             }
         """)
 
