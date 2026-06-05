@@ -85,6 +85,32 @@ class AchievementFetcherGUI(QMainWindow):
         self.controls_panel.generate_clicked.connect(self.start_generate)
 
     def show_browse_dialog(self):
+        db_path = os.path.join(self.assets_dir, "steam_data.db")
+        if not os.path.exists(db_path):
+            self.output_panel.clear_for_generation()
+            self.write_output("Generating database...")
+            self.input_panel.browse_btn.setEnabled(False)
+            signals = self.thread_manager.run_function(self._generate_db)
+            signals.result.connect(self._on_db_generated)
+            signals.error.connect(self._on_db_error)
+        else:
+            self._open_browse_dialog()
+
+    def _generate_db(self):
+        from src.core.appID_finder import get_steam_data
+        conn = get_steam_data(self.assets_dir)
+        conn.close()
+
+    def _on_db_generated(self, _):
+        self.input_panel.browse_btn.setEnabled(True)
+        self.write_output("Database generated successfully")
+        self._open_browse_dialog()
+
+    def _on_db_error(self, error):
+        self.input_panel.browse_btn.setEnabled(True)
+        self.write_output(f"Database generation failed: {str(error)}")
+
+    def _open_browse_dialog(self):
         dialog = BrowseDialog(self.controls_panel.config, self.settings_path, self)
         dialog.game_selected.connect(self.on_browse_selected)
         dialog.exec()
