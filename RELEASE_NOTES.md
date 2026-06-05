@@ -34,3 +34,14 @@
 - Refactored error messages
 - Added fallback mechanism for APP_ID resolution
 - Improved browser detection for broader compatibility
+
+# v1.0.7
+- Introduced a Browse button for easy game lookup and selection
+- Completely overhauled `cf_bypass.py` with a more robust stealth mechanism
+- Introduced `StealthShield` to intercept and hide browser windows more effectively
+- Improved `CloudflareBypasser` with refined Turnstile detection and interaction
+- Modularized GUI layer by extracting components into a dedicated `widgets` package
+- Centralized core logic and improved separation of concerns
+- Introduced `network.py` to unify session management and file downloads
+- Implemented `logger.py` to improve debugging and error tracking across modules
+- Reduced code duplication across all core modules
