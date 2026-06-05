@@ -68,7 +68,7 @@ def main():
     command = " ".join(nuitka_params)
 
     print("Compiling main GUI...")
-    
+
     if run_command(command):
         print("\nCompilation completed successfully!")
         print("Check the dist folder for the output files.")
