@@ -124,15 +124,7 @@ class StealthShield(threading.Thread):
 
         # Keep cb alive as an instance attribute - ctypes won't GC it.
         self._cb = WinEventProcType(self._on_window_created)
-        h_hook = _SetWinEventHook(
-            EVENT_OBJECT_CREATE,
-            EVENT_OBJECT_CREATE,
-            0,
-            self._cb,
-            0,
-            0,
-            WINEVENT_OUTOFCONTEXT,
-        )
+        h_hook = _SetWinEventHook(EVENT_OBJECT_CREATE, EVENT_OBJECT_CREATE, 0, self._cb, 0, 0, WINEVENT_OUTOFCONTEXT)
 
         msg = wintypes.MSG()
         while not self._stop_event.is_set():
@@ -228,22 +220,22 @@ class CloudflareBypasser:
         # Form-field variant: <input name="...turnstile..."> buried in nested shadow DOMs
         for ele in self.driver.eles("tag:input"):
             if "turnstile" in ele.attrs.get("name", ""):
-                sr1 = ele.parent().shadow_root      # @property → ShadowRoot | None (plain None)
+                sr1 = ele.parent().shadow_root  # @property → ShadowRoot | None (plain None)
                 if sr1 is None:
                     continue
                 body = sr1.child()("tag:body")
                 if not body:
                     continue
-                sr2 = body.shadow_root              # @property → ShadowRoot | None
+                sr2 = body.shadow_root  # @property → ShadowRoot | None
                 if sr2 is None:
                     continue
-                return sr2("tag:input")             # ShadowRoot.__call__ == .ele()
+                return sr2("tag:input") # ShadowRoot.__call__ == .ele()
 
         # Iframe variant: shadow root on <body> contains an <iframe> with a second shadow root
         body = self.driver.ele("tag:body")
         if not body:
             return None
-        sr = body.shadow_root                       # @property → ShadowRoot | None
+        sr = body.shadow_root   # @property → ShadowRoot | None
         if sr is None:
             return None
         ifr = sr.ele("tag:iframe")
@@ -252,7 +244,7 @@ class CloudflareBypasser:
         frame_body = ifr.content_frame.ele("tag:body")
         if not frame_body:
             return None
-        sr2 = frame_body.shadow_root                # @property → ShadowRoot | None
+        sr2 = frame_body.shadow_root    # @property → ShadowRoot | None
         if sr2 is None:
             return None
         return sr2.ele("tag:input")
@@ -263,7 +255,7 @@ class CloudflareBypasser:
 
         tries = 0
         while True:
-            # title is outside a try in the original — but CF redirects can make it
+            # title is outside a try in the original - but CF redirects can make it
             # throw PageDisconnectedError before we even enter the inner try block.
             try:
                 if "just a moment" not in self.driver.title.lower():
@@ -287,9 +279,9 @@ class CloudflareBypasser:
                 else:
                     time.sleep(1)
             except (PageDisconnectedError, ContextLostError):
-                # CF navigated away while we were traversing the shadow DOM — wait for reload
+                # CF navigated away while we were traversing the shadow DOM - wait for reload
                 time.sleep(1)
-            except Exception:  # noqa: BLE001 — CF DOM structure can be volatile
+            except Exception:  # noqa: BLE001 - CF DOM structure can be volatile
                 time.sleep(1)
 
             tries += 1

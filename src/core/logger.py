@@ -1,6 +1,4 @@
-import logging
-import functools
-import types
+import logging, functools, types
 
 _LOG_FILE = 'debug.log'
 _logging_ready = False
@@ -37,7 +35,7 @@ def format_arg(obj, max_str: int = 80, max_items: int = 5) -> str:
     """
     Return a concise, readable string representation of a function argument.
     Handles primitives, strings (with truncation), collections, dicts, and
-    arbitrary objects — falling back to repr() with truncation as a last resort.
+    arbitrary objects - falling back to repr() with truncation as a last resort.
     """
     try:
         if obj is None or isinstance(obj, (bool, int, float)):

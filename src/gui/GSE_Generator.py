@@ -70,7 +70,7 @@ class AchievementFetcherGUI(QMainWindow):
 
         main_layout.addWidget(self.output_panel, 1, 0)
         main_layout.addWidget(self.status_panel, 2, 0)
-        
+
         # Let the output panel take up all the extra vertical space when maximized
         main_layout.setRowStretch(1, 1)
 

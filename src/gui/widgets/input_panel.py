@@ -17,10 +17,10 @@ class InputPanel(QFrame):
     def init_ui(self):
         # Prevent the frame itself from expanding vertically
         self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)
-        
+
         layout = QGridLayout(self)
         layout.setContentsMargins(8, 8, 8, 4)
-        
+
         # We need a slight vertical spacing to calculate the button height correctly
         layout.setVerticalSpacing(6)
 
