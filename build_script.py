@@ -46,6 +46,7 @@ def main():
         "src.core.cf_bypass",
         "src.core.dlc_gen",
         "src.core.goldberg_gen",
+        "src.core.logger",
         "src.core.network",
         "src.core.setupEmu",
         "src.core.threadManager",
