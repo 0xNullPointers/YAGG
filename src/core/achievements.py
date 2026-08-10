@@ -93,9 +93,10 @@ def fetch_from_steamdb(appid: str, output_dir: str, silent: bool = False) -> Lis
             else:
                 description = desc_div.text.strip()
 
-        icon_imgs = achievement_div.select('img')
-        icon = icon_imgs[0].get('data-name', '') if len(icon_imgs) >= 1 else ""
-        icongray = icon_imgs[1].get('data-name', '') if len(icon_imgs) >= 2 else ""
+        icon_img = achievement_div.select_one('img.achievement_image')
+        lock_img = achievement_div.select_one('img.achievement_image_small')
+        icon = icon_img.get('data-name', '') if icon_img else ""
+        icongray = lock_img.get('data-name', '') if lock_img else ""
 
         achievements.append({
             "description": description,
