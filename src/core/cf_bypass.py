@@ -7,19 +7,21 @@ DLL_FILENAME = "cf_bypass.dll"
 
 
 def _find_dll() -> str:
-    """Locate cf_bypass.dll next to this package, in project root, or beside the exe."""
-    here = os.path.dirname(os.path.abspath(__file__))
+    """Locate cf_bypass.dll in assets folder beside the project, bundle, or exe."""
+    try:
+        base = sys._MEIPASS  # type: ignore
+    except AttributeError:
+        base = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     candidates = [
-        os.path.join(here, DLL_FILENAME),
-        os.path.join(here, "..", "..", DLL_FILENAME),
-        os.path.join(os.getcwd(), DLL_FILENAME),
+        os.path.join(base, "assets", DLL_FILENAME),
+        os.path.join(os.path.dirname(sys.executable), "assets", DLL_FILENAME),
+        os.path.join("assets", DLL_FILENAME),
+        os.path.join(os.path.dirname(sys.executable), DLL_FILENAME),
     ]
-    if getattr(sys, "frozen", False):  # PyInstaller/Nuitka bundle
-        candidates.insert(0, os.path.join(os.path.dirname(sys.executable), DLL_FILENAME))
     for path in candidates:
         if os.path.isfile(path):
             return os.path.abspath(path)
-    raise RuntimeError(f"{DLL_FILENAME} not found alongside this package or in project root.")
+    raise RuntimeError(f"{DLL_FILENAME} not found in assets folder.")
 
 
 _lib: ctypes.CDLL | None = None
