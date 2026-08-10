@@ -1,9 +1,32 @@
-import os, json, concurrent.futures
-from bs4 import BeautifulSoup
+import os, json, re, concurrent.futures
+from bs4 import BeautifulSoup, Tag
 from typing import List, Dict, Set, Optional
 from src.core.cf_bypass import CF_Scraper
 from src.core.network import create_session, download_file
 from src.core.logger import log_operation
+
+# Steam CDN image hash: 40 hex chars + extension
+_ICON_HASH_RE = re.compile(r'^[0-9a-f]{40}\.(?:jpe?g|png|gif|webp)$', re.IGNORECASE)
+
+def _image_name(img: Optional[Tag]) -> str:
+    """Extract the CDN file name from an <img>: data-name attribute first,
+    then fall back to the basename of the src URL."""
+    if img is None:
+        return ""
+    name = (img.get('data-name') or "").strip()
+    if not _ICON_HASH_RE.match(name):
+        src = img.get('src') or ""
+        name = src.rstrip('/').split('/')[-1]
+    return name if _ICON_HASH_RE.match(name) else ""
+
+def _block_text(block: Optional[Tag]) -> str:
+    if block is None:
+        return ""
+    return block.get_text(" ", strip=True)
+
+def _set_if_missing(target: Dict, key: str, value):
+    if key not in target:
+        target[key] = value
 
 @log_operation()
 def download_images(appid: str, achievements: List[Dict], output_dir: str, silent: bool = False):
@@ -66,46 +89,95 @@ def fetch_from_steamdb(appid: str, output_dir: str, silent: bool = False) -> Lis
         raise RuntimeError("Failed to fetch HTML from SteamDB")
 
     soup = BeautifulSoup(html_content, 'html.parser')
+
+    # SteamDB renders achievement rows as div.achievement. If that selector ever
+    # stops matching (site restructure), fall back to any element carrying a
+    # spoiler/name/api marker so extraction keeps working.
     achievement_divs = soup.select('div.achievement')
+    if not achievement_divs:
+        achievement_divs = soup.select('[id^="achievement-"]')
+        if not achievement_divs:
+            achievement_divs = [
+                el for el in soup.select('[class*="achievement"]')
+                if el.select_one('.achievement_api, .achievement_name, .achievement_desc, .achievement_spoiler')
+            ]
 
     if not achievement_divs:
         return []
 
     if not silent:
         print("  - Extracting achievements")
+        print(f"Found {len(achievement_divs)} achievement blocks")
 
     achievements = []
 
     for achievement_div in achievement_divs:
-        name_div = achievement_div.select_one('div.achievement_api')
-        if not name_div: continue
+        entry: Dict = {}
 
-        name = name_div.text.strip()
-        display_name_div = achievement_div.select_one('div.achievement_name')
-        display_name = display_name_div.text.strip() if display_name_div else ""
-
-        desc_div = achievement_div.select_one('div.achievement_desc')
-        hidden, description = 0, ""
-        if desc_div:
-            hidden_span = desc_div.select_one('span.achievement_spoiler')
-            if hidden_span:
-                hidden, description = 1, hidden_span.text.strip()
+        # Description
+        desc_div = achievement_div.select_one('.achievement_desc')
+        if desc_div is None:
+            desc_div = achievement_div.select_one('[class*="desc"], [class*="detail"]')
+        description = ""
+        if desc_div is not None:
+            spoiler = desc_div.select_one('.achievement_spoiler, .spoiler')
+            if spoiler is not None:
+                description = _block_text(spoiler)
             else:
-                description = desc_div.text.strip()
+                # Fallback: hidden marker is stable prose ("Hidden achievement:")
+                match = re.search(r'Hidden achievement:\s*(.*)', desc_div.get_text(" ", strip=True), flags=re.I)
+                if match and match.group(1).strip():
+                    description = match.group(1).strip()
+                else:
+                    description = re.sub(r'^Hidden achievement:\s*', '', desc_div.get_text(" ", strip=True), flags=re.I)
+        entry['description'] = description
 
+        # Display name
+        display_div = achievement_div.select_one('.achievement_name')
+        _set_if_missing(entry, 'displayName', _block_text(display_div))
+
+        # Hidden
+        hidden = 0
+        if desc_div is not None:
+            if desc_div.select_one('.achievement_spoiler, .spoiler') is not None:
+                hidden = 1
+            elif re.search(r'Hidden achievement:\s*\S', desc_div.get_text(" ", strip=True), flags=re.I):
+                hidden = 1
+        entry['hidden'] = hidden
+
+        # Icons: prefer explicit classes, else fall back to any seeded image
+        # carrying a valid CDN hash (document order = small thumb, then big art).
         icon_img = achievement_div.select_one('img.achievement_image')
         lock_img = achievement_div.select_one('img.achievement_image_small')
-        icon = icon_img.get('data-name', '') if icon_img else ""
-        icongray = lock_img.get('data-name', '') if lock_img else ""
+        icon = _image_name(icon_img)
+        icongray = _image_name(lock_img)
 
-        achievements.append({
-            "description": description,
-            "displayName": display_name,
-            "hidden": hidden,
-            "icon": f"images/{icon}",
-            "icongray": f"images/{icongray}",
-            "name": name
-        })
+        if not (icon or icongray):
+            seeded = [img for img in achievement_div.select('img[data-name]') if _image_name(img)]
+            hashes = [_image_name(img) for img in seeded]
+            if len(hashes) >= 2:
+                icongray, icon = hashes[0], hashes[1]
+            elif hashes:
+                icon = hashes[0]
+
+        _set_if_missing(entry, 'icon', f"images/{icon}" if icon else "")
+        _set_if_missing(entry, 'icongray', f"images/{icongray}" if icongray else "")
+
+        # API name (e.g. ACH39, PLAY_CS2) — the goldberg "name" key.
+        # Fallback: derive from stable id anchor (achievement-ACH39 -> ACH39).
+        name_div = achievement_div.select_one('.achievement_api')
+        name = name_div.get_text(" ", strip=True) if name_div else ""
+        if not name:
+            m = re.match(r'^achievement-(.+)$', achievement_div.get('id') or '')
+            if m:
+                name = m.group(1)
+        entry['name'] = name
+
+        # Skip elements that yielded zero identity (fallback probe noise)
+        if not (entry.get('name') or entry.get('displayName') or icon or icongray):
+            continue
+
+        achievements.append(entry)
 
     achievement_file = os.path.join(output_dir, "achievements.json")
     with open(achievement_file, "w", encoding='utf-8') as f:
