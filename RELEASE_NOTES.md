@@ -45,3 +45,9 @@
 - Introduced `network.py` to unify session management and file downloads
 - Implemented `logger.py` to improve debugging and error tracking across modules
 - Reduced code duplication across all core modules
+
+# v1.0.8
+- Replaced browser-based Cloudflare bypass with native `cf_bypass.dll`
+- Removed DrissionPage dependency
+- Overhauled SteamDB extraction with robust selectors
+- Improved hidden-achievement and icon detection
