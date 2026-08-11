@@ -132,11 +132,17 @@ def wait_for_warmup(timeout: float = 30.0) -> bool:
 
 def _warm_worker(url: str) -> None:
     try:
-        solve(url, "both")
+        solve(url, "cookies")
     except Exception:
         pass
     finally:
         _warmup_done.set()
+
+
+def _is_challenge_page(html: str) -> bool:
+    """Check if page content is Cloudflare challenge instead of actual site."""
+    hay = html.lower() if html else ""
+    return any(x in hay for x in ["just a moment", "challenge-form", "cf_chl", "cf-error", "challenge-running"])
 
 
 @log_operation()
@@ -159,13 +165,14 @@ class CF_Scraper:
             result = solve(url, "both")
             if result.get("code") == 200:
                 body = result.get("body", "")
-                if page_load_wait:
-                    import time
-                    time.sleep(page_load_wait)
-                return body
+                if body and not _is_challenge_page(body):
+                    if page_load_wait:
+                        import time
+                        time.sleep(page_load_wait)
+                    return body
             if attempt < max_retries:
                 import time
-                time.sleep(2 * (attempt + 1))
+                time.sleep(0.5)
         return ""
 
     def cleanup(self) -> None:
