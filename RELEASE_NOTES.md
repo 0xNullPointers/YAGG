@@ -51,3 +51,9 @@
 - Removed DrissionPage dependency
 - Overhauled SteamDB extraction with robust selectors
 - Improved hidden-achievement and icon detection
+
+# v1.0.9
+- Replaced standard python threading with PySide6 synchronization primitives
+- Fixed a critical deadlock bug in `cf_bypass.py` by switching to recursive locking
+- Added robust challenge-page detection in Python to automatically retry failed Cloudflare solver attempts
+- Optimized startup warmup speed by fetching only clearance cookies and skipping page body parsing
