@@ -11,7 +11,7 @@ target_link_libraries(YAGG kernel32 user32 shell32)
 
 # Output directory
 set_target_properties(YAGG PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/../dist"
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/dist"
 )
 
 # Compiler optimization flags
