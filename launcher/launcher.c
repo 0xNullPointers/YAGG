@@ -40,6 +40,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         &si,
         &pi
     )) {
+        AllowSetForegroundWindow(pi.dwProcessId);
+        WaitForInputIdle(pi.hProcess, 3000);
         CloseHandle(pi.hProcess);
         CloseHandle(pi.hThread);
     }
