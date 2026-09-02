@@ -24,3 +24,19 @@ class RedirectText:
     @log_operation()
     def flush(self):
         pass
+
+
+@log_operation()
+def bring_to_foreground(widget):
+    """Ensure the top-level window is raised, activated, and given foreground focus."""
+    widget.raise_()
+    widget.activateWindow()
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            hwnd = int(widget.winId())
+            ctypes.windll.user32.SetForegroundWindow(hwnd)
+            from PySide6.QtCore import QTimer
+            QTimer.singleShot(50, lambda: ctypes.windll.user32.SetForegroundWindow(hwnd))
+        except Exception:
+            pass

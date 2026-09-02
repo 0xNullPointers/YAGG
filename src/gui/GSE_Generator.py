@@ -2,7 +2,7 @@ import os, sys, shutil
 from PySide6.QtWidgets import QMainWindow, QWidget, QGridLayout, QFileDialog
 from PySide6.QtCore import Qt, Signal, QTimer, QByteArray
 from PySide6.QtGui import QIcon
-from .utils import get_resource_path, RedirectText
+from .utils import get_resource_path, RedirectText, bring_to_foreground
 from .widgets.input_panel import InputPanel
 from .widgets.controls_panel import ControlsPanel
 from .widgets.output_panel import OutputPanel
@@ -51,6 +51,10 @@ class AchievementFetcherGUI(QMainWindow):
         self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.WindowMinimizeButtonHint | Qt.WindowType.WindowMaximizeButtonHint | Qt.WindowType.WindowCloseButtonHint)
         icon_path = get_resource_path('icon.ico')
         self.setWindowIcon(QIcon(icon_path))
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        bring_to_foreground(self)
 
     @log_operation(mute=True)
     def init_ui(self):
