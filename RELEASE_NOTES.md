@@ -57,3 +57,12 @@
 - Fixed a critical deadlock bug in `cf_bypass.py` by switching to recursive locking
 - Added robust challenge-page detection in Python to automatically retry failed Cloudflare solver attempts
 - Optimized startup warmup speed by fetching only clearance cookies and skipping page body parsing
+
+# v1.0.10
+- Fixed SteamDB achievement fetching via direct section endpoint queries with Cloudflare sessions
+- Added Cloudflare clearance cookie and session caching with auto-refresh on expiration
+- Fixed SteamDB DLC fetching with Cloudflare session support and broader selectors
+- Fixed release builds opening in the background by ensuring proper foreground window activation
+- Fixed logger masking standalone function arguments as `<str>`
+- Added explicit error reporting and fallback notifications during achievement generation
+
