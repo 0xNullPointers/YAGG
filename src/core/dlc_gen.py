@@ -26,31 +26,35 @@ def fetch_steam_dlcs(session, app_id):
     except: return {}
 
 @log_operation()
-def fetch_steamdb_dlcs(session, app_id):
+def fetch_steamdb_dlcs(app_id):
     try:
+        from src.core.cf_bypass import get_cf_session
+        session = get_cf_session()
         response = session.get(f"https://steamdb.info/app/{app_id}/dlc/", timeout=10)
+        if response.status_code != 200:
+            return {}
         soup = BeautifulSoup(response.content, 'html.parser')
-        rows = soup.select("#dlc.tab-pane.selected table.table tbody tr.app")
+        rows = soup.select("#dlc table.table tbody tr.app, table.table tbody tr.app")
         dlcs = {}
         for row in rows:
             try:
-                dlc_id = int(row.select_one("td:nth-child(1)").text.strip())
-                dlc_name = row.select_one("td:nth-child(2)").text.strip()
-                dlcs[dlc_id] = dlc_name
-            except: pass
+                tds = row.find_all("td")
+                if len(tds) >= 2:
+                    dlc_id = int(tds[0].text.strip())
+                    dlc_name = tds[1].text.strip()
+                    dlcs[dlc_id] = dlc_name
+            except Exception:
+                pass
         return dlcs
-    except: return {}
+    except Exception:
+        return {}
 
 @log_operation()
 def fetch_dlc(app_id):
     with create_session() as session:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-            f1 = executor.submit(fetch_steam_dlcs, session, app_id)
-            f2 = executor.submit(fetch_steamdb_dlcs, session, app_id)
-            d1, d2 = f1.result(), f2.result()
-
-    unq_dlcs = {**d2, **d1}
-    return unq_dlcs
+        steam_dlcs = fetch_steam_dlcs(session, app_id)
+    steamdb_dlcs = fetch_steamdb_dlcs(app_id)
+    return {**steamdb_dlcs, **steam_dlcs}
 
 @log_operation()
 def create_dlc_config(game_dir, dlc_details):

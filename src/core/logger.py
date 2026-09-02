@@ -1,4 +1,4 @@
-import logging, functools, types
+import logging, functools, types, inspect
 
 _LOG_FILE = 'debug.log'
 _logging_ready = False
@@ -141,6 +141,12 @@ def log_operation(
         module = func.__module__
         _logger = logger if logger is not None else get_logger(module)
 
+        try:
+            first_param = next(iter(inspect.signature(func).parameters))
+            is_method = first_param in ('self', 'cls')
+        except Exception:
+            is_method = False
+
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             if mute:
@@ -150,7 +156,7 @@ def log_operation(
             for i, arg in enumerate(args):
                 if i in redacted:
                     arg_parts.append(f'arg[{i}]=<redacted>')
-                elif i == 0 and skip_self:
+                elif i == 0 and skip_self and is_method:
                     arg_parts.append(f'<{type(arg).__name__}>')
                 else:
                     arg_parts.append(format_arg(arg))

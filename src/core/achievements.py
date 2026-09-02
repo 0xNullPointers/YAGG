@@ -1,9 +1,9 @@
 import os, json, re, concurrent.futures
 from bs4 import BeautifulSoup, Tag
 from typing import List, Dict, Set, Optional
-from src.core.cf_bypass import CF_Scraper
+from src.core.cf_bypass import CF_Scraper, get_cf_session, refresh_cf_cookies
 from src.core.network import create_session, download_file
-from src.core.logger import log_operation
+from src.core.logger import log_operation, get_logger
 
 # Steam CDN image hash: 40 hex chars + extension
 _ICON_HASH_RE = re.compile(r'^[0-9a-f]{40}\.(?:jpe?g|png|gif|webp)$', re.IGNORECASE)
@@ -81,12 +81,47 @@ def download_images(appid: str, achievements: List[Dict], output_dir: str, silen
 def fetch_from_steamdb(appid: str, output_dir: str, silent: bool = False) -> List[Dict]:
     if not silent: print("Fetching achievements from SteamDB...")
 
-    if not silent: print("  - Capturing HTML")
-    with CF_Scraper(hide_window=True) as scraper:
-        html_content = scraper.scrape(f"https://steamdb.info/app/{appid}/stats/", page_load_wait=2)
+    logger = get_logger(__name__)
+    html_content = ""
+
+    # Primary method: Direct fetch via SteamDB's dedicated section endpoint with Cloudflare session
+    try:
+        session = get_cf_session()
+        headers = {
+            "Accept": "text/html",
+            "X-Requested-With": "XMLHttpRequest",
+            "Referer": f"https://steamdb.info/app/{appid}/stats/",
+        }
+        url = f"https://steamdb.info/api/RenderAppSection/?section=stats&appid={appid}"
+        resp = session.get(url, headers=headers)
+
+        if resp.status_code == 403:
+            logger.info("Cloudflare clearance expired for SteamDB; refreshing...")
+            refresh_cf_cookies()
+            session = get_cf_session()
+            resp = session.get(url, headers=headers)
+
+        if resp.status_code == 200:
+            html_content = resp.text
+        elif resp.status_code == 404:
+            logger.info(f"SteamDB returned 404 for AppID {appid} (game has no achievements)")
+            return []
+        else:
+            logger.warning(f"RenderAppSection returned HTTP {resp.status_code} for AppID {appid}")
+    except Exception as e:
+        logger.warning(f"RenderAppSection request failed for AppID {appid}: {e}")
+
+    # Fallback method: Browser solver scraping if RenderAppSection did not yield HTML
+    if not html_content:
+        if not silent: print("  - Fallback: Capturing HTML via browser solver")
+        try:
+            with CF_Scraper(hide_window=True) as scraper:
+                html_content = scraper.scrape(f"https://steamdb.info/app/{appid}/stats/", page_load_wait=2)
+        except Exception as e:
+            logger.warning(f"CF_Scraper fallback failed for AppID {appid}: {e}")
 
     if not html_content:
-        raise RuntimeError("Failed to fetch HTML from SteamDB")
+        raise RuntimeError(f"Failed to fetch HTML from SteamDB for AppID {appid}")
 
     soup = BeautifulSoup(html_content, 'html.parser')
 
@@ -103,6 +138,9 @@ def fetch_from_steamdb(appid: str, output_dir: str, silent: bool = False) -> Lis
             ]
 
     if not achievement_divs:
+        loader = soup.select_one('.loader, p.text-center')
+        status_text = loader.get_text(strip=True) if loader else "No achievement elements found"
+        logger.warning(f"SteamDB returned HTML without achievement entries for AppID {appid}: {status_text}")
         return []
 
     if not silent:

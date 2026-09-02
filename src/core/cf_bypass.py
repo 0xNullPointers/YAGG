@@ -3,6 +3,7 @@ import json
 import os
 import sys
 from PySide6.QtCore import QMutex, QWaitCondition, QRecursiveMutex
+from curl_cffi import requests
 from src.core.logger import log_operation
 
 
@@ -50,6 +51,8 @@ _lib: ctypes.CDLL | None = None
 _warmup_done = PySideEvent()
 _warmup_started = False
 _thread_manager = None
+_cached_cookies: dict[str, str] = {}
+_cached_ua: str = ""
 
 
 def _find_dll() -> str:
@@ -98,15 +101,50 @@ def solve(url: str, mode: str = "both") -> dict:
 
 
 def _solve_unlocked(url: str, mode: str) -> dict:
+    global _cached_cookies, _cached_ua
     lib = _get_lib()
     ptr = lib.cf_solve_mode(url.encode("utf-8"), mode.encode("utf-8"))
     if not ptr:
         return {"code": 0, "error": "null pointer returned"}
     try:
         raw = ctypes.string_at(ptr).decode("utf-8", errors="replace")
-        return json.loads(raw)
+        data = json.loads(raw)
+        if data.get("code") == 200:
+            if data.get("cookies"):
+                _cached_cookies.update(data["cookies"])
+            if data.get("user_agent"):
+                _cached_ua = data["user_agent"]
+        return data
     finally:
         lib.cf_free(ptr)
+
+
+@log_operation()
+def get_cf_session(timeout: int = 30) -> requests.Session:
+    """Return a curl_cffi Session loaded with solved Cloudflare cookies & User-Agent."""
+    global _cached_cookies, _cached_ua
+    wait_for_warmup(timeout=10.0)
+    if "cf_clearance" not in _cached_cookies:
+        solve("https://steamdb.info/", "cookies")
+
+    session = requests.Session(impersonate="chrome120", timeout=timeout)
+    if _cached_cookies:
+        session.cookies.update(_cached_cookies)
+    if _cached_ua:
+        session.headers["User-Agent"] = _cached_ua
+    return session
+
+
+@log_operation()
+def refresh_cf_cookies(url: str = "https://steamdb.info/") -> dict[str, str]:
+    """Force-solve Cloudflare to refresh cached clearance cookies."""
+    global _cached_cookies, _cached_ua
+    res = solve(url, "cookies")
+    if res.get("cookies"):
+        _cached_cookies.update(res["cookies"])
+    if res.get("user_agent"):
+        _cached_ua = res["user_agent"]
+    return _cached_cookies
 
 
 @log_operation()

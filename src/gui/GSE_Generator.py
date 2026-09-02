@@ -334,11 +334,23 @@ class AchievementFetcherGUI(QMainWindow):
         from src.core.achievements import fetch_from_steamcommunity, fetch_from_steamdb
         achievements = None
         if use_steam:
-            try: achievements = fetch_from_steamcommunity(app_id, settings_dir, silent=False)
-            except: pass
+            try:
+                achievements = fetch_from_steamcommunity(app_id, settings_dir, silent=False)
+            except Exception as e:
+                self.write_output(f"Steam Community error: {e}")
         else:
-            try: achievements = fetch_from_steamdb(app_id, settings_dir, silent=False) or fetch_from_steamcommunity(app_id, settings_dir, silent=False)
-            except: pass
+            try:
+                achievements = fetch_from_steamdb(app_id, settings_dir, silent=False)
+            except Exception as e:
+                self.write_output(f"SteamDB error: {e}")
+
+            if not achievements:
+                self.write_output("Falling back to Steam Community...")
+                try:
+                    achievements = fetch_from_steamcommunity(app_id, settings_dir, silent=False)
+                except Exception as e:
+                    self.write_output(f"Steam Community fallback error: {e}")
+
         if not achievements:
             self.write_output("No achievements found.")
 
